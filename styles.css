@@ -296,3 +296,93 @@ footer{
   .barRow{ grid-template-columns: 130px 1fr 70px; }
   nav.tabs{ top: 0; }
 }
+
+.heroActions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:18px;
+}
+
+.btn{
+  display:inline-block;
+  text-decoration:none;
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(17,26,46,.35);
+}
+
+.btn:hover{
+  border-color: var(--accent);
+}
+
+.btn.primary{
+  background: rgba(126,231,135,.12);
+  border-color: rgba(126,231,135,.35);
+}
+
+.btn.ghost{
+  background: rgba(110,168,255,.10);
+  border-color: rgba(110,168,255,.25);
+}
+
+.grid2{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:14px;
+  margin-top: 10px;
+}
+
+.mini{
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:14px;
+  background: rgba(15,23,48,.22);
+}
+
+.chartBox{
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:12px;
+  background: rgba(15,23,48,.22);
+  margin-top: 10px;
+}
+
+.placeholder{
+  color: var(--muted);
+  font-size: 13px;
+  padding: 16px 0;
+  text-align:center;
+}
+
+.kpis{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.kpi{
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:14px;
+  background: rgba(15,23,48,.22);
+}
+
+.kpiNum{
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.kpiLabel{
+  margin-top:6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 900px){
+  .grid2{ grid-template-columns: 1fr; }
+}
