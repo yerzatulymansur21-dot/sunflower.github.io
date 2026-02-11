@@ -7,7 +7,10 @@
 
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- MathJax -->
+  <!-- Chart.js (for temperature chart) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- MathJax (for formulas) -->
   <script>
     window.MathJax = {
       tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] },
@@ -29,6 +32,13 @@
       </div>
     </div>
 
+    <div class="chips">
+      <span class="chip">GitHub Pages Demo</span>
+      <span class="chip">Chart.js climate chart</span>
+      <span class="chip">MathJax formulas</span>
+      <span class="chip">PV comparison</span>
+    </div>
+
     <div class="heroActions">
       <a class="btn primary" href="#overview">Overview</a>
       <a class="btn" href="#climate">Why it matters</a>
@@ -43,91 +53,85 @@
 
 <main class="container">
 
-  <!-- MAIN PAGE CONTENT -->
+  <!-- 1) OVERVIEW -->
   <section id="overview" class="card">
     <h2>Overview</h2>
     <p>
       <b>SUNFLOWER</b> is a sensorless solar tracking concept: instead of optical sensors, it uses
-      <b>location + date + time</b> to compute the Sun’s position and control the panel orientation.
+      <b>location + date + time</b> to compute the Sun’s position and control panel orientation.
+      The aim is to improve real-world reliability by reducing sensitivity to dust, clouds, and shading.
     </p>
 
     <div class="grid2">
       <div class="mini">
         <h3>Where the idea came from</h3>
         <p class="small">
-          Conventional trackers often rely on light sensors. In real conditions (dust, shading, clouds),
-          sensors may lose the Sun and cause unnecessary movements, energy loss, and maintenance.
-          SUNFLOWER avoids this by using solar position mathematics.
+          Conventional trackers often rely on light sensors. In real conditions, sensors can lose the Sun,
+          triggering unnecessary searching movements, energy waste, and maintenance. SUNFLOWER avoids this
+          by using solar position mathematics (NOAA/SPA-style).
         </p>
       </div>
+
       <div class="mini">
         <h3>Main advantages</h3>
         <ul>
           <li>No optical sensors → less sensitivity to dust & shading</li>
-          <li>Fewer unnecessary movements → lower wear</li>
-          <li>Stable control logic (algorithm-based)</li>
+          <li>Fewer unnecessary movements → lower wear and energy use</li>
+          <li>Stable control logic from astronomy-based calculations</li>
         </ul>
       </div>
     </div>
   </section>
 
-  <!-- CLIMATE / PROBLEM (UPDATED WITH IMAGES + FACTS) -->
+  <!-- 2) CLIMATE / PROBLEM -->
   <section id="climate" class="card">
     <h2>Why it matters: Climate Change</h2>
 
     <p>
-      Global warming is one of the main challenges of the 21st century.
-      The burning of fossil fuels (coal, oil, gas) increases greenhouse gas emissions
-      and contributes to rising global temperature.
+      Global warming is one of the main challenges of the 21st century. The burning of fossil fuels
+      (coal, oil, gas) increases greenhouse gas emissions and contributes to rising global temperature.
+      Improving renewable energy efficiency helps reduce dependence on fossil fuels.
     </p>
 
     <h3>Global Temperature Rise (1850–2025)</h3>
-
     <div class="imageBox">
+      <!-- If you upload an image, keep it; if not, you can remove this img. -->
       <img src="temp.png" alt="Global temperature anomaly graph (1850–2025)">
       <p class="caption">
-        Global average temperature anomaly relative to the 1850–1900 baseline (example figure).
+        Example figure: global temperature anomaly relative to the 1850–1900 baseline.
       </p>
     </div>
 
-    <p class="small">
-      The long-term trend shows temperature anomalies increasing strongly in recent decades,
-      which indicates a warming climate.
-    </p>
+    <div class="chartBox">
+      <canvas id="temperatureChart" aria-label="Temperature chart"></canvas>
+      <p class="caption">Interactive chart (demo values now, will be replaced with real dataset later).</p>
+    </div>
 
     <h3>Consequences: Floods and Displacement</h3>
-
     <div class="imageBox">
       <img src="flood.jpg" alt="Flooded area due to climate change">
-      <p class="caption">
-        Flooding and sea-level rise are among the key risks for coastal regions (example photo).
-      </p>
+      <p class="caption">Example photo illustrating flooding/sea-level risks in coastal regions.</p>
     </div>
-
-    <p>
-      Extreme climate events (floods, hurricanes, droughts) increasingly affect human lives and infrastructure.
-      Sea-level rise and stronger storms increase risks in coastal regions and can force communities to move.
-    </p>
 
     <ul>
       <li>Extreme climate events have displaced about <b>21.5 million people annually</b>.</li>
-      <li>Over the past decades, the number of at-risk people in coastal regions increased from <b>160 million</b> to <b>260 million</b>.</li>
-      <li>Bangladesh may lose <b>17%</b> of its land area by 2050, potentially displacing <b>20 million</b> people.</li>
-      <li>In Africa (Lake Victoria region), an estimated <b>16.6–38.5 million</b> migrants may move into the region by 2050.</li>
+      <li>At-risk people in coastal regions increased from <b>160 million</b> to <b>260 million</b>.</li>
+      <li>Bangladesh could lose <b>17%</b> of land area by 2050, potentially displacing <b>20 million</b> people.</li>
+      <li>In Africa (Lake Victoria region), <b>16.6–38.5 million</b> migrants may move into the region by 2050.</li>
     </ul>
 
     <p class="note">
-      Improving renewable energy efficiency (including solar tracking systems) helps reduce dependence on fossil fuels.
-      Higher PV yield per installed capacity means less fossil-fuel electricity is needed.
+      Higher PV yield per installed capacity means less fossil-fuel electricity is needed for the same demand.
+      That’s why improving tracking reliability matters.
     </p>
   </section>
 
-  <!-- COMPARISON ON MAIN -->
+  <!-- 3) COMPARISON -->
   <section id="comparison" class="card">
     <h2>Comparison</h2>
     <p class="small">
       Comparison between a fixed PV system, a conventional sensor-based tracker, and SUNFLOWER.
-      (Replace numbers with your final sources later.)
+      Replace benchmark numbers with your final sources (PVGIS/PVWatts and vendor quotes).
     </p>
 
     <table>
@@ -164,9 +168,21 @@
         </tr>
       </tbody>
     </table>
+
+    <div class="charts">
+      <div class="chart">
+        <h3>Energy Output (Bar Chart)</h3>
+        <div id="energyBars" class="bars"></div>
+      </div>
+
+      <div class="chart">
+        <h3>CAPEX Cost (Bar Chart)</h3>
+        <div id="costBars" class="bars"></div>
+      </div>
+    </div>
   </section>
 
-  <!-- SOURCES ON MAIN -->
+  <!-- 4) SOURCES -->
   <section id="sources" class="card">
     <h2>Sources</h2>
     <ul>
@@ -175,12 +191,12 @@
       <li>NREL PVWatts and/or PVGIS (energy yield benchmarks)</li>
       <li>Berkeley Lab / IEA reports (cost benchmarks)</li>
       <li>DigiKey/Mouser datasheets (hardware BOM)</li>
-      <li>Climate displacement statistics (add article/report link you used)</li>
+      <li>Climate displacement statistics (add the exact report/article link you used)</li>
     </ul>
     <p class="small">Use only credible sources (official agencies/labs) for best judging.</p>
   </section>
 
-  <!-- SEPARATE BUTTON SECTIONS -->
+  <!-- 5) FORMULAS -->
   <section id="formulas" class="card">
     <h2>Formulas (Solar Position Math)</h2>
     <p class="small">Key equations used to compute solar elevation and azimuth (NOAA/SPA-style).</p>
@@ -221,6 +237,7 @@
     \]
   </section>
 
+  <!-- 6) PHYSICS -->
   <section id="physics" class="card">
     <h2>Physics & Energy</h2>
 
@@ -228,6 +245,10 @@
     \[
       E = H \cdot PR
     \]
+    <p class="small">
+      where \(E\) is annual energy (kWh/kWp·year), \(H\) is annual irradiation on the plane of array,
+      and \(PR\) is performance ratio (typical 0.75–0.85).
+    </p>
 
     <h3>Tracking gain</h3>
     \[
@@ -243,6 +264,7 @@
     \]
   </section>
 
+  <!-- 7) PRICES -->
   <section id="costs" class="card">
     <h2>Prices & BOM</h2>
 
@@ -293,6 +315,7 @@
   </div>
 </footer>
 
+<!-- Connect JS -->
 <script src="site.js" defer></script>
 </body>
 </html>
