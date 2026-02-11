@@ -1,14 +1,14 @@
-// Simple bar chart renderer (no external libraries)
+// -------------------------------
+// 1) Simple bar chart renderer (no external libraries)
+// -------------------------------
 
-function renderBars(containerId, items, maxValue){
-
+function renderBars(containerId, items, maxValue) {
   const container = document.getElementById(containerId);
-  if(!container) return;
+  if (!container) return;
 
   container.innerHTML = "";
 
   items.forEach(item => {
-
     // Row
     const row = document.createElement("div");
     row.className = "barRow";
@@ -46,7 +46,9 @@ function renderBars(containerId, items, maxValue){
 }
 
 
-// ------------------ DATA ------------------
+// -------------------------------
+// 2) DATA
+// -------------------------------
 
 // Energy production (kWh/kWp/year)
 const energyData = [
@@ -62,16 +64,93 @@ const costData = [
   { label: "SUNFLOWER", value: 1400, valueText: "1350–1450" }
 ];
 
+// Temperature chart (demo values for now; you can replace later with real NASA/NOAA dataset)
+const temperatureData = {
+  years: [1880, 1900, 1920, 1940, 1960, 1980, 1990, 2000, 2010, 2020, 2024],
+  anomaly: [-0.20, -0.12, -0.05, 0.12, 0.10, 0.28, 0.45, 0.62, 0.85, 1.02, 1.40]
+};
 
-// ------------------ RENDER ------------------
+
+// -------------------------------
+// 3) TEMPERATURE CHART (Chart.js)
+// -------------------------------
+
+function renderTemperatureChart() {
+  const canvas = document.getElementById("temperatureChart");
+  if (!canvas) return;
+
+  // If Chart.js didn't load, avoid errors
+  if (typeof Chart === "undefined") {
+    console.warn("Chart.js is not loaded. Add <script src='https://cdn.jsdelivr.net/npm/chart.js'></script> in index.html");
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+
+  // Destroy old chart if re-render (safety)
+  if (canvas._chartInstance) {
+    canvas._chartInstance.destroy();
+  }
+
+  canvas._chartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: temperatureData.years,
+      datasets: [{
+        label: "Global Temperature Anomaly (°C)",
+        data: temperatureData.anomaly,
+        borderWidth: 2,
+        tension: 0.35,
+        fill: true,
+        pointRadius: 2.5,
+        pointHoverRadius: 5,
+        // NOTE: chart colors are set here; if you want, I can align them perfectly with your CSS theme.
+        borderColor: "#7ee787",
+        backgroundColor: "rgba(126,231,135,0.16)"
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false, // allows chartBox to control height
+      plugins: {
+        legend: {
+          labels: { color: "#e9eefc" }
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ` ${ctx.parsed.y.toFixed(2)} °C`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: "#a9b5d6" },
+          grid: { color: "rgba(255,255,255,0.06)" }
+        },
+        y: {
+          ticks: { color: "#a9b5d6" },
+          grid: { color: "rgba(255,255,255,0.06)" },
+          title: {
+            display: true,
+            text: "Anomaly (°C)",
+            color: "#a9b5d6"
+          }
+        }
+      }
+    }
+  });
+}
+
+
+// -------------------------------
+// 4) RENDER ON LOAD
+// -------------------------------
 
 document.addEventListener("DOMContentLoaded", () => {
-
-  // Energy chart
+  // Bar charts
   renderBars("energyBars", energyData, 1800);
-
-  // Cost chart
   renderBars("costBars", costData, 1600);
 
+  // Temperature line chart
+  renderTemperatureChart();
 });
-
