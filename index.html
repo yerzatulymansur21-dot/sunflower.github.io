@@ -78,16 +78,55 @@
       <li>\(H\) — hour angle</li>
       <li>\(\alpha\) — solar elevation angle</li>
       <li>\(\gamma\) — solar azimuth angle</li>
+      <li>\(\gamma_f\) — fractional year (NOAA)</li>
+      <li>\(E_t\) — equation of time (minutes)</li>
     </ul>
 
-    <h3>2.2 Solar Elevation</h3>
+    <h3>2.2 Fractional year (NOAA)</h3>
+    <p class="small">
+      Fractional year angle represents Earth’s position along its orbit based on day number and local time.
+    </p>
     \[
-    \sin(\alpha) = \sin(\varphi)\sin(\delta) + \cos(\varphi)\cos(\delta)\cos(H)
+      \gamma_f = \frac{2\pi}{365}\left(d - 1 + \frac{x - 12}{24}\right)
+    \]
+    <p class="small">
+      where \(d\) is the day of year and \(x\) is local time in hours (decimal).
+    </p>
+
+    <h3>2.3 Equation of Time (NOAA)</h3>
+    <p class="small">
+      The equation of time corrects the difference between mean solar time and true solar time.
+    </p>
+    \[
+      E_t = 229.18\left(
+      0.000075 + 0.001868\cos\gamma_f - 0.032077\sin\gamma_f
+      - 0.014615\cos(2\gamma_f) - 0.040849\sin(2\gamma_f)
+      \right)
     \]
 
-    <h3>2.3 Solar Azimuth (one common form)</h3>
+    <h3>2.4 Solar declination (NOAA)</h3>
+    <p class="small">
+      Solar declination describes how far the Sun is from the equator line (roughly \(-23.44^\circ\) to \(+23.44^\circ\)).
+    </p>
     \[
-    \gamma = \operatorname{atan2}\left(\sin(H),\, \cos(H)\sin(\varphi)-\tan(\delta)\cos(\varphi)\right)
+      \delta =
+      0.006918
+      - 0.399912\cos\gamma_f
+      + 0.070257\sin\gamma_f
+      - 0.006758\cos(2\gamma_f)
+      + 0.000907\sin(2\gamma_f)
+      - 0.002697\cos(3\gamma_f)
+      + 0.00148\sin(3\gamma_f)
+    \]
+
+    <h3>2.5 Solar Elevation</h3>
+    \[
+      \sin(\alpha) = \sin(\varphi)\sin(\delta) + \cos(\varphi)\cos(\delta)\cos(H)
+    \]
+
+    <h3>2.6 Solar Azimuth (one common form)</h3>
+    \[
+      \gamma = \operatorname{atan2}\left(\sin(H),\, \cos(H)\sin(\varphi)-\tan(\delta)\cos(\varphi)\right)
     \]
 
     <p class="note">
@@ -105,7 +144,7 @@
       A common PV engineering estimate for annual energy per installed capacity is:
     </p>
     \[
-    E = H \cdot PR
+      E = H \cdot PR
     \]
     <p class="small">
       where \(E\) is annual energy (kWh/kWp·year), \(H\) is annual irradiation on the plane of array
@@ -115,7 +154,7 @@
     <h3>3.2 Tracking gain comparison</h3>
     <p>If tracking improves yield by \(g\), then:</p>
     \[
-    E_{\text{tracker}} = E_{\text{fixed}}(1+g)
+      E_{\text{tracker}} = E_{\text{fixed}}(1+g)
     \]
 
     <h3>3.3 Example values (benchmark)</h3>
@@ -125,16 +164,16 @@
     </p>
 
     \[
-    \Delta E = 1700 - 1350 = 350\ \text{kWh/kWp·year}
+      \Delta E = 1700 - 1350 = 350\ \text{kWh/kWp·year}
     \]
     \[
-    g = \frac{350}{1350} \approx 0.26 = 26\%
+      g = \frac{350}{1350} \approx 0.26 = 26\%
     \]
 
     <h3>3.4 Convert energy gain to revenue</h3>
     <p>With electricity price \(p = 0.10\ \text{USD/kWh}\):</p>
     \[
-    \Delta R = \Delta E \cdot p = 350 \cdot 0.10 = 35\ \text{USD/kWp·year}
+      \Delta R = \Delta E \cdot p = 350 \cdot 0.10 = 35\ \text{USD/kWp·year}
     \]
 
     <p class="note">
@@ -254,6 +293,6 @@
 </footer>
 
 <!-- Connect JS file -->
-<script src="site.js"></script>
+<script src="site.js" defer></script>
 </body>
 </html>
