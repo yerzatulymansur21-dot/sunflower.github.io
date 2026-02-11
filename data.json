@@ -1,0 +1,75 @@
+{
+  "project": {
+    "name": "SUNFLOWER",
+    "currency": "USD",
+    "electricity_price_usd_per_kwh": 0.10
+  },
+
+  "comparison": {
+    "energy_kwh_per_kwp_year": {
+      "fixed_system": 1350,
+      "conventional_tracker": 1600,
+      "sunflower": 1700
+    },
+    "capex_usd_per_kwp": {
+      "fixed_system": [1200, 1250],
+      "conventional_tracker": [1400, 1500],
+      "sunflower": [1350, 1450]
+    },
+    "notes": [
+      "Benchmark values used for demonstration and can be replaced with PVGIS/PVWatts results for a specific location."
+    ]
+  },
+
+  "bom_controller": [
+    {
+      "component": "ESP32 microcontroller",
+      "qty": 1,
+      "unit_price_usd_range": [10, 12],
+      "link": "PASTE-LINK-HERE"
+    },
+    {
+      "component": "RTC module (DS3231)",
+      "qty": 1,
+      "unit_price_usd_range": [10, 25],
+      "link": "PASTE-LINK-HERE"
+    },
+    {
+      "component": "Motor driver",
+      "qty": 1,
+      "unit_price_usd_range": [8, 20],
+      "link": "PASTE-LINK-HERE"
+    },
+    {
+      "component": "Wiring + enclosure",
+      "qty": 1,
+      "unit_price_usd_range": [5, 15],
+      "link": "PASTE-LINK-HERE"
+    }
+  ],
+
+  "sources": {
+    "solar_position": [
+      {
+        "name": "NOAA Solar Calculations / Solar Position",
+        "link": "PASTE-LINK-HERE"
+      }
+    ],
+    "energy_yield": [
+      {
+        "name": "NREL PVWatts",
+        "link": "PASTE-LINK-HERE"
+      },
+      {
+        "name": "PVGIS (Solar radiation & PV yield by location)",
+        "link": "PASTE-LINK-HERE"
+      }
+    ],
+    "cost_benchmarks": [
+      {
+        "name": "Berkeley Lab Utility-Scale Solar Cost Reports",
+        "link": "PASTE-LINK-HERE"
+      }
+    ]
+  }
+}
