@@ -5,10 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SUNFLOWER — Sensorless Solar Tracker</title>
 
-  <!-- Connect CSS file -->
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- MathJax for LaTeX formulas -->
+  <!-- MathJax -->
   <script>
     window.MathJax = {
       tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] },
@@ -30,73 +29,156 @@
       </div>
     </div>
 
-    <div class="chips">
-      <span class="chip">GitHub Pages Demo</span>
-      <span class="chip">MathJax formulas</span>
-      <span class="chip">Energy + Cost comparison</span>
+    <div class="heroActions">
+      <a class="btn primary" href="#overview">Overview</a>
+      <a class="btn" href="#climate">Why it matters</a>
+      <a class="btn" href="#comparison">Comparison</a>
+      <a class="btn" href="#sources">Sources</a>
+      <a class="btn ghost" href="#formulas">Formulas</a>
+      <a class="btn ghost" href="#physics">Physics</a>
+      <a class="btn ghost" href="#costs">Prices</a>
     </div>
   </div>
 </header>
 
 <main class="container">
 
-  <nav class="tabs">
-    <a href="#overview">Overview</a>
-    <a href="#solarpos">Solar Position Math</a>
-    <a href="#physics">Physics & Energy</a>
-    <a href="#costs">Costs & Comparison</a>
-    <a href="#sources">Sources</a>
-  </nav>
-
-  <!-- 1) OVERVIEW -->
+  <!-- MAIN PAGE CONTENT -->
   <section id="overview" class="card">
-    <h2>1) Overview</h2>
+    <h2>Overview</h2>
     <p>
-      <b>SUNFLOWER</b> is a sensorless solar tracking control concept that replaces optical sensors
-      with algorithm-based control. Instead of relying on light intensity, SUNFLOWER computes the
-      Sun’s position from <b>location + date + time</b> and outputs motor commands for panel orientation.
+      <b>SUNFLOWER</b> is a sensorless solar tracking concept: instead of optical sensors, it uses
+      <b>location + date + time</b> to compute the Sun’s position and control the panel orientation.
     </p>
-    <ul>
-      <li>No optical sensors → less sensitivity to dust, clouds, shading.</li>
-      <li>Reduced maintenance and fewer unnecessary corrective movements.</li>
-      <li>Comparable tracking gains with improved stability in real-world conditions.</li>
-    </ul>
+
+    <div class="grid2">
+      <div class="mini">
+        <h3>Where the idea came from</h3>
+        <p class="small">
+          Conventional trackers often rely on light sensors. In real conditions (dust, shading, clouds),
+          sensors may lose the Sun and cause unnecessary movements, energy loss, and maintenance.
+          SUNFLOWER avoids this by using solar position mathematics.
+        </p>
+      </div>
+      <div class="mini">
+        <h3>Main advantages</h3>
+        <ul>
+          <li>No optical sensors → less sensitivity to dust & shading</li>
+          <li>Fewer unnecessary movements → lower wear</li>
+          <li>Stable control logic (algorithm-based)</li>
+        </ul>
+      </div>
+    </div>
   </section>
 
-  <!-- 2) SOLAR POSITION MATH -->
-  <section id="solarpos" class="card">
-    <h2>2) Solar Position Mathematics</h2>
+  <!-- CLIMATE / PROBLEM -->
+  <section id="climate" class="card">
+    <h2>Why it matters (Climate & Energy)</h2>
     <p>
-      SUNFLOWER uses standard astronomical solar position equations (NOAA/SPA-style approach).
-      The goal is to compute <b>solar elevation</b> \(\alpha\) and <b>solar azimuth</b> \(\gamma\).
+      Global temperature is rising, largely due to greenhouse gas emissions from fossil fuel combustion
+      (coal, oil, gas). Increasing renewable energy efficiency is one way to reduce emissions.
     </p>
 
-    <h3>2.1 Variables</h3>
-    <ul>
-      <li>\(\varphi\) — latitude</li>
-      <li>\(\delta\) — solar declination</li>
-      <li>\(H\) — hour angle</li>
-      <li>\(\alpha\) — solar elevation angle</li>
-      <li>\(\gamma\) — solar azimuth angle</li>
-      <li>\(\gamma_f\) — fractional year (NOAA)</li>
-      <li>\(E_t\) — equation of time (minutes)</li>
-    </ul>
+    <div class="grid2">
+      <div class="mini">
+        <h3>Temperature trend (example)</h3>
+        <p class="small">
+          Here you can show a simple line chart: “global temperature anomaly by year”.
+          (We can build this chart from a dataset later, e.g., NASA/NOAA.)
+        </p>
+        <div id="tempChart" class="chartBox">
+          <div class="placeholder">[Temperature chart will be here]</div>
+        </div>
+      </div>
 
-    <h3>2.2 Fractional year (NOAA)</h3>
+      <div class="mini">
+        <h3>Why tracking helps</h3>
+        <p class="small">
+          Tracking increases solar energy yield per installed capacity.
+          More yield → less fossil fuel needed for the same energy demand.
+        </p>
+        <div class="kpis">
+          <div class="kpi">
+            <div class="kpiNum">+20–30%</div>
+            <div class="kpiLabel">Typical tracking gain</div>
+          </div>
+          <div class="kpi">
+            <div class="kpiNum">↓</div>
+            <div class="kpiLabel">Maintenance with sensorless control</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPARISON ON MAIN -->
+  <section id="comparison" class="card">
+    <h2>Comparison</h2>
     <p class="small">
-      Fractional year angle represents Earth’s position along its orbit based on day number and local time.
+      Comparison between a fixed PV system, a conventional sensor-based tracker, and SUNFLOWER.
+      (Replace numbers with your final sources later.)
     </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>System</th>
+          <th>Pros</th>
+          <th>Cons</th>
+          <th>Annual Energy (kWh/kWp·year)</th>
+          <th>CAPEX (USD/kWp)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Fixed PV</td>
+          <td>Simple, cheap</td>
+          <td>Lower yield</td>
+          <td>1350</td>
+          <td>1200–1250</td>
+        </tr>
+        <tr>
+          <td>Sensor-based tracker</td>
+          <td>Higher yield</td>
+          <td>Sensitive to dust/shading, maintenance</td>
+          <td>1600</td>
+          <td>1400–1500</td>
+        </tr>
+        <tr>
+          <td><b>SUNFLOWER</b></td>
+          <td><b>Higher yield + stable control</b></td>
+          <td><b>Needs accurate time/location setup</b></td>
+          <td><b>1700</b></td>
+          <td><b>1350–1450</b></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- SOURCES ON MAIN -->
+  <section id="sources" class="card">
+    <h2>Sources</h2>
+    <ul>
+      <li>NASA / NOAA global temperature datasets (climate trend)</li>
+      <li>NOAA Solar Position / Solar calculations (math)</li>
+      <li>NREL PVWatts and/or PVGIS (energy yield benchmarks)</li>
+      <li>Berkeley Lab / IEA reports (cost benchmarks)</li>
+      <li>DigiKey/Mouser datasheets (hardware BOM)</li>
+    </ul>
+    <p class="small">Use only credible sources (official agencies/labs) for best judging.</p>
+  </section>
+
+  <!-- SEPARATE BUTTON SECTIONS -->
+  <section id="formulas" class="card">
+    <h2>Formulas (Solar Position Math)</h2>
+    <p class="small">Key equations used to compute solar elevation and azimuth (NOAA/SPA-style).</p>
+
+    <h3>Fractional year</h3>
     \[
       \gamma_f = \frac{2\pi}{365}\left(d - 1 + \frac{x - 12}{24}\right)
     \]
-    <p class="small">
-      where \(d\) is the day of year and \(x\) is local time in hours (decimal).
-    </p>
 
-    <h3>2.3 Equation of Time (NOAA)</h3>
-    <p class="small">
-      The equation of time corrects the difference between mean solar time and true solar time.
-    </p>
+    <h3>Equation of Time</h3>
     \[
       E_t = 229.18\left(
       0.000075 + 0.001868\cos\gamma_f - 0.032077\sin\gamma_f
@@ -104,10 +186,7 @@
       \right)
     \]
 
-    <h3>2.4 Solar declination (NOAA)</h3>
-    <p class="small">
-      Solar declination describes how far the Sun is from the equator line (roughly \(-23.44^\circ\) to \(+23.44^\circ\)).
-    </p>
+    <h3>Solar declination</h3>
     \[
       \delta =
       0.006918
@@ -119,114 +198,43 @@
       + 0.00148\sin(3\gamma_f)
     \]
 
-    <h3>2.5 Solar Elevation</h3>
+    <h3>Solar elevation</h3>
     \[
       \sin(\alpha) = \sin(\varphi)\sin(\delta) + \cos(\varphi)\cos(\delta)\cos(H)
     \]
 
-    <h3>2.6 Solar Azimuth (one common form)</h3>
+    <h3>Solar azimuth</h3>
     \[
       \gamma = \operatorname{atan2}\left(\sin(H),\, \cos(H)\sin(\varphi)-\tan(\delta)\cos(\varphi)\right)
     \]
-
-    <p class="note">
-      Note: In a full implementation, solar time correction (Equation of Time) and time-zone conversion
-      are included. This page provides the key core equations used for Sun positioning.
-    </p>
   </section>
 
-  <!-- 3) PHYSICS & ENERGY -->
   <section id="physics" class="card">
-    <h2>3) Physics & Energy Production</h2>
+    <h2>Physics & Energy</h2>
 
-    <h3>3.1 Annual energy estimate</h3>
-    <p>
-      A common PV engineering estimate for annual energy per installed capacity is:
-    </p>
+    <h3>Annual energy estimate</h3>
     \[
       E = H \cdot PR
     \]
-    <p class="small">
-      where \(E\) is annual energy (kWh/kWp·year), \(H\) is annual irradiation on the plane of array
-      (kWh/kWp·year), and \(PR\) is the performance ratio (typical 0.75–0.85).
-    </p>
 
-    <h3>3.2 Tracking gain comparison</h3>
-    <p>If tracking improves yield by \(g\), then:</p>
+    <h3>Tracking gain</h3>
     \[
       E_{\text{tracker}} = E_{\text{fixed}}(1+g)
     \]
 
-    <h3>3.3 Example values (benchmark)</h3>
-    <p class="small">
-      Fixed: \(E_{\text{fixed}} \approx 1350\ \text{kWh/kWp·year}\) <br/>
-      SUNFLOWER: \(E_{\text{SUNFLOWER}} \approx 1700\ \text{kWh/kWp·year}\)
-    </p>
-
+    <h3>Example gain</h3>
     \[
       \Delta E = 1700 - 1350 = 350\ \text{kWh/kWp·year}
     \]
     \[
       g = \frac{350}{1350} \approx 0.26 = 26\%
     \]
-
-    <h3>3.4 Convert energy gain to revenue</h3>
-    <p>With electricity price \(p = 0.10\ \text{USD/kWh}\):</p>
-    \[
-      \Delta R = \Delta E \cdot p = 350 \cdot 0.10 = 35\ \text{USD/kWp·year}
-    \]
-
-    <p class="note">
-      These are benchmark numbers for demonstration. You can later replace them with PVGIS or PVWatts results
-      for your specific location.
-    </p>
   </section>
 
-  <!-- 4) COSTS & COMPARISON -->
   <section id="costs" class="card">
-    <h2>4) Costs & Comparison</h2>
+    <h2>Prices & BOM</h2>
 
-    <h3>4.1 CAPEX and Energy Table</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>System</th>
-          <th>Annual Energy (kWh/kWp·year)</th>
-          <th>CAPEX (USD/kWp)</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Fixed system</td>
-          <td>1350</td>
-          <td>1200–1250</td>
-        </tr>
-        <tr>
-          <td>Conventional sensor-based tracker</td>
-          <td>1600</td>
-          <td>1400–1500</td>
-        </tr>
-        <tr>
-          <td><b>SUNFLOWER</b></td>
-          <td><b>1700</b></td>
-          <td><b>1350–1450</b></td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div class="charts">
-      <div class="chart">
-        <h3>Energy Output (Bar Chart)</h3>
-        <div id="energyBars" class="bars"></div>
-      </div>
-
-      <div class="chart">
-        <h3>CAPEX Cost (Bar Chart)</h3>
-        <div id="costBars" class="bars"></div>
-      </div>
-    </div>
-
-    <h3>4.2 SUNFLOWER Controller BOM (example)</h3>
+    <h3>SUNFLOWER Controller BOM (example)</h3>
     <table>
       <thead>
         <tr>
@@ -241,19 +249,19 @@
           <td>ESP32 Microcontroller</td>
           <td>1</td>
           <td>10–12</td>
-          <td class="small">Add store link (DigiKey/Mouser/local supplier)</td>
+          <td class="small">Add store link + datasheet</td>
         </tr>
         <tr>
           <td>RTC Module (DS3231)</td>
           <td>1</td>
           <td>10–25</td>
-          <td class="small">Add store link</td>
+          <td class="small">Add store link + datasheet</td>
         </tr>
         <tr>
           <td>Motor Driver</td>
           <td>1</td>
           <td>8–20</td>
-          <td class="small">Add store link</td>
+          <td class="small">Add store link + datasheet</td>
         </tr>
         <tr>
           <td>Wiring + Enclosure</td>
@@ -263,25 +271,6 @@
         </tr>
       </tbody>
     </table>
-
-    <p class="note">
-      Judges trust this section more when every component has a price proof link and a datasheet.
-    </p>
-  </section>
-
-  <!-- 5) SOURCES -->
-  <section id="sources" class="card">
-    <h2>5) Sources (add links)</h2>
-    <ul>
-      <li>NOAA Solar Position / Solar Calculations (Sun position math)</li>
-      <li>NREL PVWatts (energy production benchmarks)</li>
-      <li>PVGIS Solar database (radiation and yield by location)</li>
-      <li>Berkeley Lab utility-scale solar cost reports ($/W benchmarks)</li>
-      <li>DigiKey / Mouser / local suppliers (BOM prices + datasheets)</li>
-    </ul>
-    <p class="small">
-      Add only credible sources (official agencies, labs, and known industry reports) for best judging results.
-    </p>
   </section>
 
 </main>
@@ -292,7 +281,6 @@
   </div>
 </footer>
 
-<!-- Connect JS file -->
 <script src="site.js" defer></script>
 </body>
 </html>
