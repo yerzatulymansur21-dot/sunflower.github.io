@@ -2,10 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SUNFLOWER — Sensorless Solar Tracker</title>
 
-  <!-- MathJax (LaTeX formulas) -->
+  <!-- Connect CSS file -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- MathJax for LaTeX formulas -->
   <script>
     window.MathJax = {
       tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] },
@@ -13,128 +16,6 @@
     };
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
-
-  <style>
-    :root{
-      --bg:#0b1220;
-      --card:#111a2e;
-      --text:#e9eefc;
-      --muted:#a9b5d6;
-      --accent:#7ee787;
-      --line:#223055;
-      --chip:#0f1730;
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background:var(--bg);
-      color:var(--text);
-      line-height:1.45;
-    }
-    .container{max-width:980px;margin:0 auto;padding:22px}
-    header.hero{
-      padding:44px 0 26px;
-      border-bottom:1px solid var(--line);
-      background: radial-gradient(900px 300px at 20% 0%, rgba(126,231,135,.16), transparent 60%),
-                  radial-gradient(900px 300px at 90% 10%, rgba(110,168,255,.12), transparent 55%);
-    }
-    .brand{
-      display:flex; align-items:center; gap:12px;
-    }
-    .logo{
-      width:44px;height:44px;border-radius:14px;
-      background: linear-gradient(135deg, rgba(126,231,135,.25), rgba(110,168,255,.18));
-      border:1px solid var(--line);
-      display:grid; place-items:center;
-      font-weight:800; letter-spacing:.5px;
-    }
-    h1{margin:0;font-size:42px}
-    .subtitle{margin:8px 0 0;color:var(--muted);font-size:16px}
-    .tagline{margin:10px 0 0;color:var(--accent);font-weight:600}
-    nav.tabs{
-      display:flex;flex-wrap:wrap;gap:10px;
-      margin:18px 0 22px;
-    }
-    nav.tabs a{
-      text-decoration:none;color:var(--text);
-      padding:8px 12px;border:1px solid var(--line);
-      border-radius:12px;background:rgba(17,26,46,.35);
-    }
-    nav.tabs a:hover{border-color:var(--accent)}
-    .grid{display:grid;grid-template-columns:1fr;gap:16px}
-    .card{
-      background:var(--card);
-      border:1px solid var(--line);
-      border-radius:16px;
-      padding:18px;
-    }
-    h2{margin:0 0 10px;font-size:22px}
-    h3{margin:14px 0 8px;font-size:16px;color:var(--text)}
-    .note{color:var(--muted);font-size:14px;margin-top:8px}
-    ul{margin:10px 0 0 18px}
-    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-    .chip{
-      background:var(--chip);
-      border:1px solid var(--line);
-      padding:6px 10px;border-radius:999px;
-      color:var(--muted); font-size:13px;
-    }
-
-    table{
-      width:100%;
-      border-collapse:collapse;
-      margin:10px 0 0;
-      border-radius:12px;
-      overflow:hidden;
-      border:1px solid var(--line);
-    }
-    th,td{
-      padding:10px;
-      border-bottom:1px solid var(--line);
-      vertical-align:top;
-    }
-    th{color:var(--muted);text-align:left;background:rgba(15,23,48,.35)}
-    tr:last-child td{border-bottom:none}
-    a.link{color:var(--accent);text-decoration:none}
-    a.link:hover{text-decoration:underline}
-
-    .charts{
-      display:grid;
-      grid-template-columns:1fr;
-      gap:14px;
-      margin-top:10px;
-    }
-    .chart{
-      border:1px solid var(--line);
-      border-radius:14px;
-      padding:12px;
-      background:rgba(15,23,48,.25);
-    }
-    .bars{display:grid;gap:10px;margin-top:10px}
-    .barRow{display:grid;grid-template-columns:180px 1fr 70px;gap:10px;align-items:center}
-    .barLabel{color:var(--muted);font-size:14px}
-    .barTrack{
-      height:14px;border-radius:999px;
-      background:rgba(255,255,255,.06);
-      border:1px solid var(--line);
-      overflow:hidden;
-    }
-    .barFill{
-      height:100%;
-      background: linear-gradient(90deg, rgba(126,231,135,.75), rgba(110,168,255,.65));
-      border-radius:999px;
-    }
-    .barValue{font-variant-numeric: tabular-nums; text-align:right}
-    footer{
-      border-top:1px solid var(--line);
-      margin-top:18px;
-      color:var(--muted);
-      padding:16px 0 26px;
-    }
-    .small{font-size:13px;color:var(--muted)}
-    .mathblock{margin:10px 0 0}
-  </style>
 </head>
 
 <body>
@@ -158,6 +39,7 @@
 </header>
 
 <main class="container">
+
   <nav class="tabs">
     <a href="#overview">Overview</a>
     <a href="#solarpos">Solar Position Math</a>
@@ -170,9 +52,9 @@
   <section id="overview" class="card">
     <h2>1) Overview</h2>
     <p>
-      <b>SUNFLOWER</b> is a solar tracker control concept that replaces optical sensors with
-      algorithm-based control. Instead of “chasing light,” it computes the Sun’s position from
-      <b>location + date + time</b> and outputs motor commands for panel orientation.
+      <b>SUNFLOWER</b> is a sensorless solar tracking control concept that replaces optical sensors
+      with algorithm-based control. Instead of relying on light intensity, SUNFLOWER computes the
+      Sun’s position from <b>location + date + time</b> and outputs motor commands for panel orientation.
     </p>
     <ul>
       <li>No optical sensors → less sensitivity to dust, clouds, shading.</li>
@@ -199,22 +81,18 @@
     </ul>
 
     <h3>2.2 Solar Elevation</h3>
-    <div class="mathblock">
-      \[
-      \sin(\alpha) = \sin(\varphi)\sin(\delta) + \cos(\varphi)\cos(\delta)\cos(H)
-      \]
-    </div>
+    \[
+    \sin(\alpha) = \sin(\varphi)\sin(\delta) + \cos(\varphi)\cos(\delta)\cos(H)
+    \]
 
     <h3>2.3 Solar Azimuth (one common form)</h3>
-    <div class="mathblock">
-      \[
-      \gamma = \operatorname{atan2}\left(\sin(H),\, \cos(H)\sin(\varphi)-\tan(\delta)\cos(\varphi)\right)
-      \]
-    </div>
+    \[
+    \gamma = \operatorname{atan2}\left(\sin(H),\, \cos(H)\sin(\varphi)-\tan(\delta)\cos(\varphi)\right)
+    \]
 
     <p class="note">
-      Note: A production implementation also includes solar time correction (Equation of Time),
-      time-zone handling, and optional atmospheric refraction. These can be added as an appendix or code module.
+      Note: In a full implementation, solar time correction (Equation of Time) and time-zone conversion
+      are included. This page provides the key core equations used for Sun positioning.
     </p>
   </section>
 
@@ -226,59 +104,42 @@
     <p>
       A common PV engineering estimate for annual energy per installed capacity is:
     </p>
-    <div class="mathblock">
-      \[
-      E = H \cdot PR
-      \]
-    </div>
+    \[
+    E = H \cdot PR
+    \]
     <p class="small">
       where \(E\) is annual energy (kWh/kWp·year), \(H\) is annual irradiation on the plane of array
       (kWh/kWp·year), and \(PR\) is the performance ratio (typical 0.75–0.85).
     </p>
 
     <h3>3.2 Tracking gain comparison</h3>
-    <p>
-      If tracking improves yield by \(g\), then:
-    </p>
-    <div class="mathblock">
-      \[
-      E_{\text{tracker}} = E_{\text{fixed}}(1+g)
-      \]
-    </div>
+    <p>If tracking improves yield by \(g\), then:</p>
+    \[
+    E_{\text{tracker}} = E_{\text{fixed}}(1+g)
+    \]
 
     <h3>3.3 Example values (benchmark)</h3>
-    <p>
-      Fixed system:
-      \[
-      E_{\text{fixed}} \approx 1350\ \text{kWh/kWp·year}
-      \]
-      SUNFLOWER:
-      \[
-      E_{\text{SUNFLOWER}} \approx 1700\ \text{kWh/kWp·year}
-      \]
-      Difference:
-      \[
-      \Delta E = 1700 - 1350 = 350\ \text{kWh/kWp·year}
-      \]
-      Relative gain:
-      \[
-      g = \frac{350}{1350} \approx 0.26 = 26\%
-      \]
+    <p class="small">
+      Fixed: \(E_{\text{fixed}} \approx 1350\ \text{kWh/kWp·year}\) <br/>
+      SUNFLOWER: \(E_{\text{SUNFLOWER}} \approx 1700\ \text{kWh/kWp·year}\)
     </p>
+
+    \[
+    \Delta E = 1700 - 1350 = 350\ \text{kWh/kWp·year}
+    \]
+    \[
+    g = \frac{350}{1350} \approx 0.26 = 26\%
+    \]
 
     <h3>3.4 Convert energy gain to revenue</h3>
-    <p>
-      With electricity price \(p = 0.10\ \text{USD/kWh}\):
-    </p>
-    <div class="mathblock">
-      \[
-      \Delta R = \Delta E \cdot p = 350 \cdot 0.10 = 35\ \text{USD/kWp·year}
-      \]
-    </div>
+    <p>With electricity price \(p = 0.10\ \text{USD/kWh}\):</p>
+    \[
+    \Delta R = \Delta E \cdot p = 350 \cdot 0.10 = 35\ \text{USD/kWp·year}
+    \]
 
     <p class="note">
-      These are benchmark numbers for demonstration. For maximum credibility, later you can replace them with
-      PVGIS/NREL-PVWatts results for your specific city and system configuration.
+      These are benchmark numbers for demonstration. You can later replace them with PVGIS or PVWatts results
+      for your specific location.
     </p>
   </section>
 
@@ -286,7 +147,7 @@
   <section id="costs" class="card">
     <h2>4) Costs & Comparison</h2>
 
-    <h3>4.1 CAPEX and Energy Tables</h3>
+    <h3>4.1 CAPEX and Energy Table</h3>
     <table>
       <thead>
         <tr>
@@ -319,6 +180,7 @@
         <h3>Energy Output (Bar Chart)</h3>
         <div id="energyBars" class="bars"></div>
       </div>
+
       <div class="chart">
         <h3>CAPEX Cost (Bar Chart)</h3>
         <div id="costBars" class="bars"></div>
@@ -340,105 +202,58 @@
           <td>ESP32 Microcontroller</td>
           <td>1</td>
           <td>10–12</td>
-          <td class="small">Add your store link (DigiKey/Mouser/local supplier)</td>
+          <td class="small">Add store link (DigiKey/Mouser/local supplier)</td>
         </tr>
         <tr>
           <td>RTC Module (DS3231)</td>
           <td>1</td>
           <td>10–25</td>
-          <td class="small">Add your store link</td>
+          <td class="small">Add store link</td>
         </tr>
         <tr>
           <td>Motor Driver</td>
           <td>1</td>
           <td>8–20</td>
-          <td class="small">Add your store link</td>
+          <td class="small">Add store link</td>
         </tr>
         <tr>
           <td>Wiring + Enclosure</td>
           <td>1</td>
           <td>5–15</td>
-          <td class="small">Add your store link</td>
+          <td class="small">Add store link</td>
         </tr>
       </tbody>
     </table>
 
     <p class="note">
-      Tip: Judges trust your numbers more when each key component has a link (price proof) and a datasheet.
+      Judges trust this section more when every component has a price proof link and a datasheet.
     </p>
   </section>
 
   <!-- 5) SOURCES -->
   <section id="sources" class="card">
-    <h2>5) Sources (add links here)</h2>
+    <h2>5) Sources (add links)</h2>
     <ul>
-      <li>NOAA Solar Calculations / Solar Position Algorithm (SPA-style)</li>
+      <li>NOAA Solar Position / Solar Calculations (Sun position math)</li>
       <li>NREL PVWatts (energy production benchmarks)</li>
-      <li>PVGIS database (solar radiation and PV yield by location)</li>
+      <li>PVGIS Solar database (radiation and yield by location)</li>
       <li>Berkeley Lab utility-scale solar cost reports ($/W benchmarks)</li>
-      <li>DigiKey / Mouser / local suppliers (BOM prices and datasheets)</li>
+      <li>DigiKey / Mouser / local suppliers (BOM prices + datasheets)</li>
     </ul>
     <p class="small">
-      When you paste links, keep them short and credible (official agencies, labs, and recognized industry reports).
+      Add only credible sources (official agencies, labs, and known industry reports) for best judging results.
     </p>
   </section>
 
-  <footer>
-    <div class="container">
-      <div class="small">© SUNFLOWER — GitHub Pages site (single-file demo)</div>
-    </div>
-  </footer>
 </main>
 
-<script>
-  // Simple bar chart renderer (no external libraries)
-  function renderBars(containerId, items, maxValue){
-    const container = document.getElementById(containerId);
-    container.innerHTML = "";
-    items.forEach(it=>{
-      const row = document.createElement("div");
-      row.className = "barRow";
+<footer>
+  <div class="container">
+    <div class="small">© SUNFLOWER — GitHub Pages Website</div>
+  </div>
+</footer>
 
-      const label = document.createElement("div");
-      label.className = "barLabel";
-      label.textContent = it.label;
-
-      const track = document.createElement("div");
-      track.className = "barTrack";
-
-      const fill = document.createElement("div");
-      fill.className = "barFill";
-      const pct = Math.max(0, Math.min(1, it.value / maxValue));
-      fill.style.width = (pct*100).toFixed(1) + "%";
-      track.appendChild(fill);
-
-      const value = document.createElement("div");
-      value.className = "barValue";
-      value.textContent = it.valueText ?? String(it.value);
-
-      row.appendChild(label);
-      row.appendChild(track);
-      row.appendChild(value);
-      container.appendChild(row);
-    });
-  }
-
-  // Data (edit here any time)
-  const energy = [
-    { label:"Fixed system", value:1350, valueText:"1350" },
-    { label:"Conventional tracker", value:1600, valueText:"1600" },
-    { label:"SUNFLOWER", value:1700, valueText:"1700" }
-  ];
-
-  // For costs, use the midpoint to draw bars, but show range as text
-  const costs = [
-    { label:"Fixed system", value:(1200+1250)/2, valueText:"1200–1250" },
-    { label:"Sensor-based tracker", value:(1400+1500)/2, valueText:"1400–1500" },
-    { label:"SUNFLOWER", value:(1350+1450)/2, valueText:"1350–1450" }
-  ];
-
-  renderBars("energyBars", energy, 1800);
-  renderBars("costBars", costs, 1600);
-</script>
+<!-- Connect JS file -->
+<script src="site.js"></script>
 </body>
 </html>
