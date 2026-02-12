@@ -1,10 +1,20 @@
- =====================================================
+// =====================================================
 // SUNFLOWER — site.js
 // - Bar charts (no libs)
 // - Climate chart (Chart.js)
-// - 11 formula buttons -> panel (English content)
+// - 11 formula buttons -> panel
+// - Tracking demo (optimized for mobile)
+// - Web Calculator (sun position + altitude chart)
 // =====================================================
 
+// -------------------------------
+// Helpers
+// -------------------------------
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+function isMobileLike(){
+  return window.matchMedia("(max-width: 900px)").matches || /Mobi|Android/i.test(navigator.userAgent);
+}
 
 // ===============================
 // 1) SIMPLE BAR CHARTS (no libs)
@@ -14,7 +24,6 @@ function renderBars(containerId, items, maxValue){
   if(!container) return;
 
   container.innerHTML = "";
-
   items.forEach(item => {
     const row = document.createElement("div");
     row.className = "barRow";
@@ -46,7 +55,6 @@ function renderBars(containerId, items, maxValue){
   });
 }
 
-// Data (replace later with your final cited sources if needed)
 const energyData = [
   { label: "Fixed system", value: 1350, valueText: "1350" },
   { label: "Conventional tracker", value: 1600, valueText: "1600" },
@@ -59,19 +67,23 @@ const costData = [
   { label: "SUNFLOWER", value: 1400, valueText: "1350–1450" }
 ];
 
-
 // ===================================
 // 2) CLIMATE CHART (Chart.js)
 // ===================================
+let climateChart = null;
+
 function renderClimateChart(){
   const canvas = document.getElementById("tempChartCanvas");
   if(!canvas || typeof Chart === "undefined") return;
 
-  // Demo points (replace with NASA/NOAA dataset later)
   const years = [1880, 1900, 1920, 1940, 1960, 1980, 2000, 2010, 2020, 2025];
   const anomaly = [-0.18, -0.12, -0.08, 0.05, 0.02, 0.18, 0.42, 0.62, 0.98, 1.15];
 
-  new Chart(canvas, {
+  const ctx = canvas.getContext("2d");
+
+  if(climateChart) climateChart.destroy();
+
+  climateChart = new Chart(ctx, {
     type: "line",
     data: {
       labels: years,
@@ -87,22 +99,14 @@ function renderClimateChart(){
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: { display: true }
-      },
+      plugins: { legend: { display: true } },
       scales: {
-        x: {
-          title: { display: true, text: "Year" },
-          grid: { display: false }
-        },
-        y: {
-          title: { display: true, text: "Anomaly (°C)" }
-        }
+        x: { title: { display: true, text: "Year" }, grid: { display: false } },
+        y: { title: { display: true, text: "Anomaly (°C)" } }
       }
     }
   });
 }
-
 
 // ===================================
 // 3) FORMULA PANEL (11 buttons)
@@ -110,53 +114,28 @@ function renderClimateChart(){
 const formulaContent = {
   gamma: {
     title: "γ — Fractional Year",
-    definition: `
-      <p><b>γ</b> converts the day/time into an annual angle (seasonal phase). It is used in
-      solar declination and Equation of Time approximations.</p>
-    `,
-    derivation: `
-      <p>The annual cycle is periodic, so we map the day number to an angle:
-      one full year corresponds to <b>2π</b> radians.</p>
-    `,
-    eq: String.raw`
-      \[
+    definition: `<p><b>γ</b> converts the day/time into an annual angle (seasonal phase). It is used in solar declination and Equation of Time approximations.</p>`,
+    derivation: `<p>The annual cycle is periodic, so we map the day number to an angle: one full year corresponds to <b>2π</b> radians.</p>`,
+    eq: String.raw`\[
       \gamma = \frac{2\pi}{365}\left(n - 1 + \frac{h - 12}{24}\right)
-      \]
-    `
+    \]`
   },
-
   et: {
     title: "ET — Equation of Time",
-    definition: `
-      <p><b>ET</b> is the time difference between true solar time and mean clock time,
-      mainly due to orbital eccentricity and Earth’s axial tilt.</p>
-    `,
-    derivation: `
-      <p>ET varies periodically through the year, so it is approximated by a sum of
-      sine/cosine harmonics of <b>γ</b> (standard NOAA/SPA style).</p>
-    `,
-    eq: String.raw`
-      \[
+    definition: `<p><b>ET</b> is the time difference between true solar time and mean clock time, due to orbital eccentricity and axial tilt.</p>`,
+    derivation: `<p>ET varies periodically through the year and is approximated by harmonics of <b>γ</b> (NOAA-style).</p>`,
+    eq: String.raw`\[
       ET = 229.18\left(
       0.000075 + 0.001868\cos\gamma - 0.032077\sin\gamma
       - 0.014615\cos(2\gamma) - 0.040849\sin(2\gamma)
       \right)
-      \]
-    `
+    \]`
   },
-
   delta: {
     title: "δ — Solar Declination",
-    definition: `
-      <p><b>δ</b> is the angle between the Sun’s rays and the Earth’s equatorial plane.
-      It controls seasonal changes in solar height.</p>
-    `,
-    derivation: `
-      <p>Declination is nearly sinusoidal over the year; higher accuracy uses several
-      harmonics of <b>γ</b>.</p>
-    `,
-    eq: String.raw`
-      \[
+    definition: `<p><b>δ</b> is the angle between the Sun’s rays and the Earth’s equatorial plane.</p>`,
+    derivation: `<p>Declination is nearly sinusoidal; higher accuracy uses several harmonics of <b>γ</b>.</p>`,
+    eq: String.raw`\[
       \delta =
       0.006918
       - 0.399912\cos\gamma
@@ -165,139 +144,78 @@ const formulaContent = {
       + 0.000907\sin(2\gamma)
       - 0.002697\cos(3\gamma)
       + 0.00148\sin(3\gamma)
-      \]
-    `
+    \]`
   },
-
   tf: {
     title: "t_f — Time Correction",
-    definition: `
-      <p><b>t_f</b> corrects local clock time to solar time using longitude difference and ET.</p>
-    `,
-    derivation: `
-      <p>Earth rotates 360° in 24 hours ⇒ <b>1° ≈ 4 minutes</b>. Add ET to account for orbital effects.</p>
-    `,
-    eq: String.raw`
-      \[
+    definition: `<p><b>t_f</b> corrects local clock time to solar time using longitude difference and ET.</p>`,
+    derivation: `<p>Earth rotates 360° in 24 hours ⇒ <b>1° ≈ 4 minutes</b>. Add ET to account for orbital effects.</p>`,
+    eq: String.raw`\[
       t_f = 4\,(L_{st}-L_{loc}) + ET
-      \]
-    `
+    \]`
   },
-
   tst: {
     title: "t_st — True Solar Time",
-    definition: `
-      <p><b>t_st</b> is time defined by the Sun’s apparent motion (solar time).</p>
-    `,
-    derivation: `
-      <p>It is computed by applying the correction <b>t_f</b> to local time.</p>
-    `,
-    eq: String.raw`
-      \[
+    definition: `<p><b>t_st</b> is time defined by the Sun’s apparent motion (solar time).</p>`,
+    derivation: `<p>Computed by applying the correction <b>t_f</b> to local time.</p>`,
+    eq: String.raw`\[
       t_{st} = t + \frac{t_f}{60}
-      \]
-    `
+    \]`
   },
-
   ha: {
     title: "h_a — Hour Angle",
-    definition: `
-      <p><b>h_a</b> measures the Sun’s angular displacement from solar noon (when <b>h_a = 0</b>).</p>
-    `,
-    derivation: `
-      <p>Earth rotates 15° per hour, so hour angle is proportional to \((t_{st}-12)\).</p>
-    `,
-    eq: String.raw`
-      \[
+    definition: `<p><b>h_a</b> measures the Sun’s angular displacement from solar noon (when <b>h_a = 0</b>).</p>`,
+    derivation: `<p>Earth rotates 15° per hour, so hour angle is proportional to \((t_{st}-12)\).</p>`,
+    eq: String.raw`\[
       h_a = 15^\circ\,(t_{st}-12)
-      \]
-    `
+    \]`
   },
-
   phi: {
     title: "φ — Zenith Angle",
-    definition: `
-      <p><b>φ</b> is the zenith angle: the angle between the Sun direction and the upward vertical (zenith).</p>
-    `,
-    derivation: `
-      <p>From spherical trigonometry on the celestial sphere (latitude, declination, hour angle),
-      we obtain the cosine form for the zenith angle.</p>
-    `,
-    eq: String.raw`
-      \[
+    definition: `<p><b>φ</b> is the angle between the Sun direction and the upward vertical (zenith).</p>`,
+    derivation: `<p>From spherical trigonometry on the celestial sphere we obtain the cosine form.</p>`,
+    eq: String.raw`\[
       \cos(\varphi) = \sin(lat)\sin(\delta) + \cos(lat)\cos(\delta)\cos(h_a)
-      \]
-    `
+    \]`
   },
-
   theta: {
     title: "θ — Azimuth",
-    definition: `
-      <p><b>θ</b> is the horizontal direction of the Sun (angle in the horizon plane).</p>
-    `,
-    derivation: `
-      <p>Using spherical trigonometry, <b>atan2</b> is used to get the correct quadrant for azimuth.</p>
-    `,
-    eq: String.raw`
-      \[
+    definition: `<p><b>θ</b> is the horizontal direction of the Sun (angle in the horizon plane).</p>`,
+    derivation: `<p><b>atan2</b> is used to get the correct quadrant.</p>`,
+    eq: String.raw`\[
       \theta = \operatorname{atan2}\left(\sin(h_a),\, \cos(h_a)\sin(lat)-\tan(\delta)\cos(lat)\right)
-      \]
-    `
+    \]`
   },
-
   sr: {
     title: "S_r,t — Sunrise & Sunset",
-    definition: `
-      <p><b>S_{r,t}</b> represent sunrise and sunset times. At sunrise/sunset, solar elevation is ~0°,
-      so the zenith angle is ~90°.</p>
-    `,
-    derivation: `
-      <p>Set \(\cos(\varphi)=0\) (horizon condition) and solve for the sunrise/sunset hour angle \(h_{a0}\),
-      then convert angle to time (15° per hour).</p>
-    `,
-    eq: String.raw`
-      \[
+    definition: `<p><b>S_{r,t}</b> represent sunrise and sunset times. At sunrise/sunset, solar elevation is ~0°.</p>`,
+    derivation: `<p>Set horizon condition and solve for hour angle \(h_{a0}\), then convert to time.</p>`,
+    eq: String.raw`\[
       \cos(h_{a0}) = -\tan(lat)\tan(\delta)
-      \]
-      \[
+    \]
+    \[
       S_r = 12 - \frac{h_{a0}}{15^\circ}, \quad
       S_t = 12 + \frac{h_{a0}}{15^\circ}
-      \]
-    `
+    \]`
   },
-
   snoon: {
     title: "S_noon — Solar Noon",
-    definition: `
-      <p><b>S_{noon}</b> is the moment when the Sun reaches its highest point (hour angle <b>h_a=0</b>).</p>
-    `,
-    derivation: `
-      <p>Solar noon is 12:00 in true solar time, so the clock-time shift depends on the time correction.</p>
-    `,
-    eq: String.raw`
-      \[
+    definition: `<p><b>S_{noon}</b> is when the Sun reaches its highest point (hour angle <b>h_a=0</b>).</p>`,
+    derivation: `<p>Solar noon is 12:00 in true solar time, shifted in clock time by the correction.</p>`,
+    eq: String.raw`\[
       S_{noon} = 12 - \frac{t_f}{60}
-      \]
-    `
+    \]`
   },
-
   dalpha: {
     title: "Δα — Angular Error",
-    definition: `
-      <p><b>Δα</b> measures the difference between a reference angle and the algorithm output
-      (used to quantify tracking accuracy).</p>
-    `,
-    derivation: `
-      <p>The simplest accuracy metric is the absolute difference between angles (and similarly for azimuth).</p>
-    `,
-    eq: String.raw`
-      \[
+    definition: `<p><b>Δα</b> measures tracking accuracy as the difference between reference and algorithm angles.</p>`,
+    derivation: `<p>Use absolute differences for elevation and azimuth error metrics.</p>`,
+    eq: String.raw`\[
       \Delta \alpha = \left| \alpha_{\text{ref}} - \alpha_{\text{alg}} \right|
-      \]
-      \[
+    \]
+    \[
       \Delta \theta = \left| \theta_{\text{ref}} - \theta_{\text{alg}} \right|
-      \]
-    `
+    \]`
   }
 };
 
@@ -337,7 +255,6 @@ function openFormulaPanel(key){
 
   panel.classList.remove("hidden");
   typesetMath(panel);
-
   panel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -346,41 +263,29 @@ function closeFormulaPanel(){
   if(panel) panel.classList.add("hidden");
 }
 
-
 // ===================================
-// 4) INIT
+// 4) INIT BASIC UI
 // ===================================
 document.addEventListener("DOMContentLoaded", () => {
-
-  // Bars
   renderBars("energyBars", energyData, 1800);
   renderBars("costBars", costData, 1600);
-
-  // Climate chart
   renderClimateChart();
 
-  // Formula buttons (11)
   document.querySelectorAll(".formulaTile").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const key = btn.dataset.formula;
-      openFormulaPanel(key);
-    });
+    btn.addEventListener("click", () => openFormulaPanel(btn.dataset.formula));
   });
 
-  // Close button
   const closeBtn = document.getElementById("panelClose");
   if(closeBtn) closeBtn.addEventListener("click", closeFormulaPanel);
 
-  // Close on ESC
   document.addEventListener("keydown", (e) => {
     if(e.key === "Escape") closeFormulaPanel();
   });
 });
 
-/* ============================
-   3-System Tracking Demo
-   ============================ */
-
+// ===================================
+// 5) TRACKING DEMO (OPTIMIZED)
+// ===================================
 (function initTrackerDemo(){
   const canvas = document.getElementById("trackerDemo");
   if(!canvas) return;
@@ -398,29 +303,43 @@ document.addEventListener("DOMContentLoaded", () => {
   let secondsPerDay = Number((speedRange && speedRange.value) || 12);
   let running = true;
 
-  // timeOfDay: 0..1 (sunrise..sunset)
-  let t = 0;                 // normalized day progress
+  let t = 0;
   let lastTs = performance.now();
 
-  // sensor tracker internal states
   let sensorLocked = true;
   let sensorAngle = 0;
   let sensorHuntPhase = 0;
 
-  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+  // Visibility pause
+  let demoVisible = true;
+  const demoSection = document.getElementById("demo");
+  if("IntersectionObserver" in window && demoSection){
+    const io = new IntersectionObserver((entries) => {
+      demoVisible = !!entries[0]?.isIntersecting;
+    }, { threshold: 0.15 });
+    io.observe(demoSection);
+  }
+
+  // Pause when tab hidden
+  document.addEventListener("visibilitychange", () => {
+    if(document.hidden) demoVisible = false;
+  });
 
   function resize(){
-    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const dprRaw = window.devicePixelRatio || 1;
+    const dpr = isMobileLike() ? Math.min(1.25, dprRaw) : Math.min(2, dprRaw);
+
     const cssW = canvas.clientWidth || 1000;
-    const cssH = canvas.height; // CSS height comes from attribute
+    const cssH = canvas.getAttribute("height") ? Number(canvas.getAttribute("height")) : 320;
+
     canvas.width = Math.floor(cssW * dpr);
     canvas.height = Math.floor(cssH * dpr);
+
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
   function setWeather(v){
     weather = v;
-    // reset sensor lock a bit (so user sees behavior change)
     sensorLocked = true;
     sensorHuntPhase = 0;
   }
@@ -438,16 +357,14 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function sunPos(norm){
-    // arc: left -> right, higher in middle
-    // norm 0..1
     const x = norm;
-    const y = Math.sin(Math.PI * norm); // 0..1..0
+    const y = Math.sin(Math.PI * norm);
     return { x, y };
   }
 
   function smoothStep(a, b, x){
-    const t = clamp((x - a) / (b - a), 0, 1);
-    return t * t * (3 - 2 * t);
+    const tt = clamp((x - a) / (b - a), 0, 1);
+    return tt * tt * (3 - 2 * tt);
   }
 
   function drawRoundedRect(x,y,w,h,r){
@@ -461,15 +378,17 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.closePath();
   }
 
+  // FPS cap on mobile
+  const targetFrameMs = isMobileLike() ? 33 : 16;
+  let accumMs = 0;
+
   function draw(){
     const W = canvas.clientWidth || 1000;
-    const H = canvas.height; // CSS pixels
+    const H = Number(canvas.getAttribute("height")) || 320;
 
-    // Background (dark, blue)
     ctx.fillStyle = "#070a14";
     ctx.fillRect(0,0,W,H);
 
-    // subtle gradient stripe
     const g = ctx.createLinearGradient(0,0,W,0);
     g.addColorStop(0, "rgba(30,90,160,0.20)");
     g.addColorStop(0.55, "rgba(0,0,0,0)");
@@ -477,134 +396,101 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.fillStyle = g;
     ctx.fillRect(0,0,W,H);
 
-    const pad = 16;
-    const colGap = 14;
-    const cols = 3;
+    const pad = 16, colGap = 14, cols = 3;
     const colW = (W - pad*2 - colGap*(cols-1)) / cols;
     const cardH = H - pad*2;
     const top = pad;
-    const lefts = [
-      pad,
-      pad + (colW + colGap),
-      pad + 2*(colW + colGap)
-    ];
+    const lefts = [ pad, pad + (colW + colGap), pad + 2*(colW + colGap) ];
 
-    // Sun path area inside each card
     const skyTop = top + 14;
     const skyH = cardH * 0.58;
     const groundY = skyTop + skyH;
 
-    // Sun position
     const sp = sunPos(t);
     const sunXn = sp.x;
-    const sunYn = sp.y; // 0..1..0
+    const sunYn = sp.y;
 
-    // Weather: irradiance and effects
     let irradiance = 1.0;
-    let cloudCover = 0.0;   // 0..1
-    let sensorDirty = 0.0;  // 0..1
+    let cloudCover = 0.0;
+    let sensorDirty = 0.0;
 
     if(weather === "cloudy"){
       cloudCover = 0.7;
       irradiance = 0.55;
     } else if(weather === "dusty"){
       sensorDirty = 0.9;
-      irradiance = 0.85; // still sunny, but sensor is blocked
+      irradiance = 0.85;
     }
 
-    // If near sunrise/sunset, lower irradiance a bit (soft)
-    const edgeDim = 1 - smoothStep(0.05, 0.18, t) * smoothStep(0.95, 0.82, t);
-    // edgeDim ~ 1 at edges; invert to dim edges
     const dayFactor = 0.65 + 0.35 * Math.sin(Math.PI*t);
     irradiance *= dayFactor;
 
-    // calculate "true" sun angle for panels
-    // Map sun position to an angle for tracking: -60..+60 degrees
     const sunAngle = (-60 + 120 * sunXn) * Math.PI/180;
-
-    // 1) Fixed panel: constant tilt
     const fixedAngle = 20 * Math.PI/180;
 
-    // 2) Sensor tracker: follows when locked, loses in cloudy/dusty, hunts
-    // Losing probability depends on cloudCover or sensorDirty.
-    // Also add higher loss at low sun (morning/evening).
     const lowSun = (sunYn < 0.25) ? 1 : 0;
     const lossPressure = clamp(0.15 + 0.95*(cloudCover + sensorDirty) + 0.25*lowSun, 0, 1);
 
-    // randomly drop lock sometimes
+    // Make behavior deterministic-ish (no heavy random each frame on mobile)
+    // Use a pseudo trigger based on time
+    const rnd = Math.sin((t*1000) + 1.2345) * 0.5 + 0.5;
+
     if(sensorLocked){
-      // chance per frame scaled by lossPressure
       const p = 0.0025 * lossPressure;
-      if(Math.random() < p) sensorLocked = false;
+      if(rnd < p) sensorLocked = false;
     } else {
-      // regain lock if weather ok-ish and sun high
       const regain = (1 - lossPressure) * (sunYn > 0.25 ? 1 : 0.35);
       const p = 0.015 * regain;
-      if(Math.random() < p) sensorLocked = true;
+      if(rnd < p) sensorLocked = true;
     }
 
-    // update sensor angle
     if(sensorLocked){
-      // smooth follow
       sensorAngle += (sunAngle - sensorAngle) * 0.08;
     } else {
-      // hunting motion
       sensorHuntPhase += 0.12;
       const hunt = Math.sin(sensorHuntPhase) * (35*Math.PI/180);
       sensorAngle += (hunt - sensorAngle) * 0.06;
     }
 
-    // 3) Algorithm tracker: always follows precisely
     const algoAngle = sunAngle;
 
-    // Draw 3 cards
     const systems = [
-      { name:"Fixed Panel", angle: fixedAngle, mode:"STATIC", color:"rgba(255,255,255,.65)", status:"OK" },
-      { name:"Sensor Tracker", angle: sensorAngle, mode:"SENSOR", color:"rgba(110,168,255,.85)", status: sensorLocked ? "TRACKING" : "LOST" },
-      { name:"SUNFLOWER", angle: algoAngle, mode:"ALGO", color:"rgba(126,231,135,.90)", status:"LOCKED" }
+      { name:"Fixed Panel", angle: fixedAngle, color:"rgba(255,255,255,.65)", status:"OK" },
+      { name:"Sensor Tracker", angle: sensorAngle, color:"rgba(110,168,255,.85)", status: sensorLocked ? "TRACKING" : "LOST" },
+      { name:"SUNFLOWER", angle: algoAngle, color:"rgba(126,231,135,.90)", status:"LOCKED" }
     ];
 
     for(let i=0;i<3;i++){
-      const x0 = lefts[i];
-      const y0 = top;
-      const w = colW;
-      const h = cardH;
+      const x0 = lefts[i], y0 = top, w = colW, h = cardH;
 
-      // card
-      ctx.save();
-      ctx.globalAlpha = 1;
       ctx.fillStyle = "rgba(255,255,255,0.04)";
       ctx.strokeStyle = "rgba(255,255,255,0.10)";
       drawRoundedRect(x0,y0,w,h,18);
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
+      ctx.fill(); ctx.stroke();
 
-      // title
       ctx.fillStyle = "rgba(233,238,252,0.92)";
       ctx.font = "700 16px system-ui, -apple-system, Segoe UI, Roboto, Arial";
       ctx.fillText(systems[i].name, x0+14, y0+26);
 
-      // status pill
       const st = systems[i].status;
+      ctx.font = "700 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
       const pillW = ctx.measureText(st).width + 20;
       const pillX = x0 + w - pillW - 14;
       const pillY = y0 + 12;
+
       ctx.fillStyle = (i===1 && st==="LOST") ? "rgba(255,120,120,0.16)" : "rgba(255,255,255,0.06)";
       ctx.strokeStyle = (i===1 && st==="LOST") ? "rgba(255,120,120,0.35)" : "rgba(255,255,255,0.10)";
       drawRoundedRect(pillX, pillY, pillW, 22, 999);
       ctx.fill(); ctx.stroke();
+
       ctx.fillStyle = (i===1 && st==="LOST") ? "rgba(255,170,170,0.95)" : "rgba(233,238,252,0.78)";
-      ctx.font = "700 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
       ctx.fillText(st, pillX+10, pillY+15);
 
-      // sky region
       const skyX = x0 + 12;
       const skyY = skyTop;
       const skyW = w - 24;
       const skyH2 = skyH - 10;
 
-      // sky background
       const skyG = ctx.createLinearGradient(skyX, skyY, skyX, skyY+skyH2);
       skyG.addColorStop(0, "rgba(12,18,40,0.95)");
       skyG.addColorStop(1, "rgba(8,10,22,0.95)");
@@ -612,97 +498,78 @@ document.addEventListener("DOMContentLoaded", () => {
       drawRoundedRect(skyX, skyY, skyW, skyH2, 16);
       ctx.fill();
 
-      // sun arc (path)
+      // Sun path
       ctx.strokeStyle = "rgba(255,255,255,0.08)";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      for(let k=0;k<=60;k++){
-        const tt = k/60;
+      for(let k=0;k<=40;k++){
+        const tt = k/40;
         const p = sunPos(tt);
         const px = skyX + p.x * skyW;
         const py = skyY + (1 - p.y) * (skyH2*0.78) + skyH2*0.08;
-        if(k===0) ctx.moveTo(px,py);
-        else ctx.lineTo(px,py);
+        if(k===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
       }
       ctx.stroke();
 
-      // clouds (only cloudy)
       if(weather === "cloudy"){
         ctx.save();
         ctx.globalAlpha = 0.55;
         ctx.fillStyle = "rgba(200,220,255,0.10)";
         const baseY = skyY + 34 + Math.sin(t*6.28 + i)*6;
-        for(let c=0;c<4;c++){
-          const cx = skyX + ( (t*0.6 + c*0.28) % 1 ) * skyW;
-          const cy = baseY + c*8;
-          drawRoundedRect(cx-40, cy, 86, 26, 999);
-          ctx.fill();
-          drawRoundedRect(cx-10, cy-14, 56, 24, 999);
-          ctx.fill();
+        for(let c=0;c<3;c++){
+          const cx = skyX + ( (t*0.6 + c*0.33) % 1 ) * skyW;
+          const cy = baseY + c*10;
+          drawRoundedRect(cx-40, cy, 86, 26, 999); ctx.fill();
+          drawRoundedRect(cx-10, cy-14, 56, 24, 999); ctx.fill();
         }
         ctx.restore();
       }
 
-      // sun position in this card
       const sunPx = skyX + sunXn * skyW;
       const sunPy = skyY + (1 - sunYn) * (skyH2*0.78) + skyH2*0.08;
 
-      // sun glow (dimmed by clouds)
       const sunAlpha = clamp(0.25 + 0.75*(1-cloudCover), 0.15, 1);
-      ctx.save();
-      const glow = ctx.createRadialGradient(sunPx, sunPy, 4, sunPx, sunPy, 52);
-      glow.addColorStop(0, `rgba(255,220,140,${0.30*sunAlpha})`);
+
+      // Glow (reduced radius on mobile)
+      const glowR = isMobileLike() ? 34 : 52;
+      const glow = ctx.createRadialGradient(sunPx, sunPy, 4, sunPx, sunPy, glowR);
+      glow.addColorStop(0, `rgba(255,220,140,${0.26*sunAlpha})`);
       glow.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(sunPx, sunPy, 52, 0, Math.PI*2);
-      ctx.fill();
-      ctx.restore();
+      ctx.beginPath(); ctx.arc(sunPx, sunPy, glowR, 0, Math.PI*2); ctx.fill();
 
-      // sun disk
       ctx.fillStyle = `rgba(255,220,140,${0.90*sunAlpha})`;
-      ctx.beginPath();
-      ctx.arc(sunPx, sunPy, 6, 0, Math.PI*2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(sunPx, sunPy, 6, 0, Math.PI*2); ctx.fill();
 
-      // ground line
+      // ground
       const gy = groundY;
       ctx.strokeStyle = "rgba(255,255,255,0.10)";
-      ctx.beginPath();
-      ctx.moveTo(x0+12, gy);
-      ctx.lineTo(x0+w-12, gy);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x0+12, gy); ctx.lineTo(x0+w-12, gy); ctx.stroke();
 
-      // draw panel + stand
       const panelBaseX = x0 + w*0.5;
       const panelBaseY = gy + 84;
 
       // stand
       ctx.strokeStyle = "rgba(255,255,255,0.18)";
       ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(panelBaseX, gy+10);
-      ctx.lineTo(panelBaseX, panelBaseY-10);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(panelBaseX, gy+10); ctx.lineTo(panelBaseX, panelBaseY-10); ctx.stroke();
 
-      // tracker head
+      // head
       ctx.fillStyle = "rgba(255,255,255,0.06)";
       ctx.strokeStyle = "rgba(255,255,255,0.12)";
       drawRoundedRect(panelBaseX-26, panelBaseY-14, 52, 28, 12);
       ctx.fill(); ctx.stroke();
 
-      // sensors (only for sensor tracker)
+      // sensors
       if(i===1){
         ctx.save();
         ctx.fillStyle = sensorDirty > 0.5 ? "rgba(255,160,120,0.65)" : "rgba(233,238,252,0.35)";
         ctx.beginPath(); ctx.arc(panelBaseX-10, panelBaseY-2, 3, 0, Math.PI*2); ctx.fill();
         ctx.beginPath(); ctx.arc(panelBaseX+10, panelBaseY-2, 3, 0, Math.PI*2); ctx.fill();
 
-        // dirty overlay indicator
         if(weather === "dusty"){
           ctx.fillStyle = "rgba(255,170,120,0.12)";
-          drawRoundedRect(panelBaseX-30, panelBaseY-30, 60, 18, 8);
-          ctx.fill();
+          drawRoundedRect(panelBaseX-30, panelBaseY-30, 60, 18, 8); ctx.fill();
           ctx.fillStyle = "rgba(255,190,160,0.85)";
           ctx.font = "700 11px system-ui, -apple-system, Segoe UI, Roboto, Arial";
           ctx.fillText("DIRTY SENSOR", panelBaseX-26, panelBaseY-18);
@@ -710,53 +577,41 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.restore();
       }
 
-      // panel rectangle rotated by system angle
       const ang = systems[i].angle;
 
-      // ray from sun to panel direction indicator (only if sun above horizon)
+      // ray
       const sunAbove = (sunYn > 0.02);
       if(sunAbove){
         ctx.save();
         const rayAlpha = 0.10 + 0.18 * irradiance;
         ctx.strokeStyle = `rgba(255,220,140,${rayAlpha})`;
         ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(sunPx, sunPy);
-        ctx.lineTo(panelBaseX, panelBaseY);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sunPx, sunPy); ctx.lineTo(panelBaseX, panelBaseY); ctx.stroke();
         ctx.restore();
       }
 
+      // panel
       ctx.save();
       ctx.translate(panelBaseX, panelBaseY);
       ctx.rotate(ang);
+
       ctx.fillStyle = "rgba(15,23,48,0.85)";
       ctx.strokeStyle = "rgba(255,255,255,0.16)";
       ctx.lineWidth = 2;
 
-      // panel (w x h)
       const pw = 120, ph = 58;
       drawRoundedRect(-pw/2, -ph/2, pw, ph, 10);
-      ctx.fill();
-      ctx.stroke();
+      ctx.fill(); ctx.stroke();
 
-      // panel grid lines
       ctx.strokeStyle = "rgba(255,255,255,0.08)";
       ctx.lineWidth = 1;
       for(let gx= -pw/2 + 18; gx < pw/2; gx += 18){
-        ctx.beginPath();
-        ctx.moveTo(gx, -ph/2+6);
-        ctx.lineTo(gx, ph/2-6);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(gx, -ph/2+6); ctx.lineTo(gx, ph/2-6); ctx.stroke();
       }
       for(let gy2= -ph/2 + 18; gy2 < ph/2; gy2 += 18){
-        ctx.beginPath();
-        ctx.moveTo(-pw/2+6, gy2);
-        ctx.lineTo(pw/2-6, gy2);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-pw/2+6, gy2); ctx.lineTo(pw/2-6, gy2); ctx.stroke();
       }
 
-      // highlight border (system color)
       ctx.strokeStyle = systems[i].color;
       ctx.lineWidth = 2;
       ctx.globalAlpha = 0.8;
@@ -764,23 +619,15 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.stroke();
       ctx.restore();
 
-      // compute yield (cos of angular error) * irradiance
-      // treat sun below horizon -> 0
+      // yield
       const err = Math.abs(sunAngle - ang);
       let align = Math.cos(err);
       align = clamp(align, 0, 1);
       let sysIrr = irradiance;
-
-      // in cloudy, all systems receive less irradiance (already applied),
-      // but sensor tracker when LOST produces additional loss (unnecessary movement / misalignment)
       if(i===1 && !sensorLocked) align *= 0.35;
-
-      // fixed panel loses in afternoon (misalignment naturally)
-      // already captured by cos(err)
 
       const yieldVal = (sunAbove ? (align * sysIrr) : 0);
 
-      // yield bar
       const barX = x0 + 14;
       const barY = y0 + h - 46;
       const barW = w - 28;
@@ -801,7 +648,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const pct = Math.round(yieldVal*100);
       ctx.fillText(`Yield: ${pct}%`, barX, barY + 32);
 
-      // small caption about failure
       if(i===1 && !sensorLocked){
         ctx.fillStyle = "rgba(255,170,170,0.85)";
         ctx.font = "700 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
@@ -809,33 +655,36 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Footer hint line
     ctx.fillStyle = "rgba(233,238,252,0.55)";
     ctx.font = "600 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
     const label = (weather === "sunny") ? "Sunny conditions" : (weather === "cloudy") ? "Cloudy (sensor instability)" : "Dusty (dirty sensor)";
-    ctx.fillText(label, 18, H - 10);
+    ctx.fillText(label, 18, (Number(canvas.getAttribute("height")) || 320) - 10);
   }
 
   function tick(ts){
     const dt = Math.min(0.05, (ts - lastTs) / 1000);
     lastTs = ts;
 
-    if(running){
+    if(demoVisible && running){
       const dayRate = 1 / Math.max(4, secondsPerDay);
       t += dt * dayRate;
       if(t > 1) t -= 1;
     }
 
-    draw();
+    // FPS throttle (mobile)
+    accumMs += (ts - (tick._lastDrawTs || ts));
+    if(accumMs >= targetFrameMs){
+      draw();
+      accumMs = 0;
+      tick._lastDrawTs = ts;
+    }
+
     requestAnimationFrame(tick);
   }
 
   // Events
-  window.addEventListener("resize", () => { resize(); });
-
-  if(weatherSelect){
-    weatherSelect.addEventListener("change", (e) => setWeather(e.target.value));
-  }
+  window.addEventListener("resize", resize);
+  if(weatherSelect) weatherSelect.addEventListener("change", (e) => setWeather(e.target.value));
   if(speedRange){
     speedRange.addEventListener("input", (e) => setSpeed(e.target.value));
     setSpeed(speedRange.value);
@@ -846,22 +695,16 @@ document.addEventListener("DOMContentLoaded", () => {
       togglePlay.textContent = running ? "Pause" : "Play";
     });
   }
-  if(resetDemo){
-    resetDemo.addEventListener("click", () => reset());
-  }
+  if(resetDemo) resetDemo.addEventListener("click", reset);
 
-  // Init
   resize();
   draw();
   requestAnimationFrame((ts)=>{ lastTs = ts; tick(ts); });
 })();
 
-/* ============================
-   Web Calculator (Sun Position)
-   Uses NOAA-style equations
-   + Chart.js altitude curve
-   ============================ */
-
+// ===================================
+// 6) WEB CALCULATOR (Sun Position)
+// ===================================
 (function initWebCalculator(){
   const calcBtn = document.getElementById("calcBtn");
   const fillBtn = document.getElementById("calcFillBtn");
@@ -879,6 +722,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const degToRad = (deg) => deg * Math.PI / 180;
   const radToDeg = (rad) => rad * 180 / Math.PI;
+  const pad2 = (n) => String(n).padStart(2,'0');
 
   function dayOfYearUTC(d){
     const start = Date.UTC(d.getUTCFullYear(), 0, 0);
@@ -886,18 +730,14 @@ document.addEventListener("DOMContentLoaded", () => {
     return Math.floor((now - start) / 86400000);
   }
 
-  function pad2(n){ return String(n).padStart(2,'0'); }
-
   function computeFor(date, lat, lon, tz){
     const day = dayOfYearUTC(date);
     const hour = date.getHours();
     const minute = date.getMinutes();
     const second = date.getSeconds();
 
-    // fractional year (gamma)
     const gamma = 2 * Math.PI / 365 * (day - 1 + (hour - 12) / 24);
 
-    // equation of time (minutes)
     const eqtime = 229.18 * (
       0.000075
       + 0.001868 * Math.cos(gamma)
@@ -906,7 +746,6 @@ document.addEventListener("DOMContentLoaded", () => {
       - 0.040849 * Math.sin(2*gamma)
     );
 
-    // declination (radians)
     const decl = 0.006918
       - 0.399912 * Math.cos(gamma)
       + 0.070257 * Math.sin(gamma)
@@ -915,9 +754,9 @@ document.addEventListener("DOMContentLoaded", () => {
       - 0.002697 * Math.cos(3*gamma)
       + 0.00148  * Math.sin(3*gamma);
 
-    const timeOffset = eqtime + 4 * lon - 60 * tz; // minutes
-    const tst = hour * 60 + minute + second / 60 + timeOffset; // minutes
-    const ha = (tst / 4) - 180; // degrees
+    const timeOffset = eqtime + 4 * lon - 60 * tz;
+    const tst = hour * 60 + minute + second / 60 + timeOffset;
+    const ha = (tst / 4) - 180;
 
     const haRad = degToRad(ha);
     const latRad = degToRad(lat);
@@ -925,25 +764,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const cosZen = Math.sin(latRad) * Math.sin(decl)
       + Math.cos(latRad) * Math.cos(decl) * Math.cos(haRad);
 
-    const cosZenClamped = Math.max(-1, Math.min(1, cosZen));
+    const cosZenClamped = clamp(cosZen, -1, 1);
     const zenith = radToDeg(Math.acos(cosZenClamped));
     const altitude = 90 - zenith;
 
-    // azimuth (degrees, 0..360)
     const zenRad = Math.acos(cosZenClamped);
     const sinZen = Math.sin(zenRad);
 
-    let azimuth = NaN;
+    let azimuth = 0;
     if(sinZen > 1e-8){
       const sinAz = -(Math.sin(latRad) * Math.cos(decl) - Math.sin(decl) * Math.cos(latRad) * Math.cos(haRad)) / sinZen;
       const cosAz = (Math.sin(decl) - Math.sin(latRad) * cosZenClamped) / (Math.cos(latRad) * sinZen);
       azimuth = radToDeg(Math.atan2(sinAz, cosAz));
       if(azimuth < 0) azimuth += 360;
-    } else {
-      azimuth = 0;
     }
 
-    // Solar noon (local clock minutes) — simple form from your code
     const solarNoonMin = 720 - 4 * lon - eqtime;
     const snoonH = Math.floor(solarNoonMin / 60);
     const snoonM = Math.floor(solarNoonMin % 60);
@@ -965,48 +800,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let altitudeChart = null;
 
-  function renderChart(lat, lon, tz, dayOfYear){
+  function renderChart(lat, lon, tz){
+    if(typeof Chart === "undefined") return;
+
+    const dateStr = dateInput.value;
+    if(!dateStr) return;
+
     const labels = [];
-    const data = [];
+    const points = [];
 
     // 0..24 with 15-min step
     for(let h = 0; h <= 24; h += 0.25){
       const hh = Math.floor(h);
       const mm = Math.round((h - hh) * 60);
-
       labels.push(`${pad2(hh)}:${pad2(mm)}`);
 
-      // build a local Date just for hour sweep (today’s date is fine because we use dayOfYear explicitly via UTC date)
-      // we’ll create a dummy date and then overwrite the UTC day-of-year logic by constructing a real date from that doy:
-      // simplest: compute decl/eqtime with a synthetic date at that hour using the current selected date in outer scope.
-      // So here we will just call computeFor using a Date derived from the selected date at hour h.
-      // We'll pass a "baseDate" set by calc() below.
-      // This function will be called with baseDate set globally.
-    }
-
-    // We need base date from inputs
-    const dateStr = dateInput.value;
-    if(!dateStr) return;
-
-    // Use noon time to avoid timezone drift when building date from string
-    const base = new Date(dateStr + "T12:00:00");
-
-    const points = [];
-    for(let h = 0; h <= 24; h += 0.25){
-      const hh = Math.floor(h);
-      const mm = Math.round((h - hh) * 60);
       const d = new Date(dateStr + `T${pad2(hh)}:${pad2(mm)}:00`);
-
       const res = computeFor(d, lat, lon, tz);
       points.push(res.altitude);
-    }
-
-    // rebuild labels to match points
-    labels.length = 0;
-    for(let h = 0; h <= 24; h += 0.25){
-      const hh = Math.floor(h);
-      const mm = Math.round((h - hh) * 60);
-      labels.push(`${pad2(hh)}:${pad2(mm)}`);
     }
 
     const ctx = altCanvas.getContext("2d");
@@ -1036,22 +847,13 @@ document.addEventListener("DOMContentLoaded", () => {
             grid: { color: "rgba(255,255,255,0.08)" }
           },
           x: {
-            ticks: {
-              color: "rgba(233,238,252,0.55)",
-              maxTicksLimit: 9
-            },
+            ticks: { color: "rgba(233,238,252,0.55)", maxTicksLimit: 9 },
             grid: { color: "rgba(255,255,255,0.06)" }
           }
         },
         plugins: {
-          legend: {
-            labels: { color: "rgba(233,238,252,0.75)" }
-          },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => `Altitude: ${ctx.parsed.y.toFixed(2)}°`
-            }
-          }
+          legend: { labels: { color: "rgba(233,238,252,0.75)" } },
+          tooltip: { callbacks: { label: (c) => `Altitude: ${c.parsed.y.toFixed(2)}°` } }
         }
       }
     });
@@ -1071,7 +873,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const date = new Date(dateStr + "T" + timeStr + ":00");
-
     const r = computeFor(date, lat, lon, tz);
 
     resultEl.textContent =
@@ -1085,11 +886,10 @@ document.addEventListener("DOMContentLoaded", () => {
       `Solar altitude: ${r.altitude.toFixed(2)}°\n` +
       `Solar noon: ${r.solarNoon}`;
 
-    renderChart(lat, lon, tz, r.day);
+    renderChart(lat, lon, tz);
   }
 
   function fillDemo(){
-    // Ust-Kamenogorsk-ish demo values (you can change)
     if(!dateInput.value){
       const now = new Date();
       dateInput.value = `${now.getFullYear()}-${pad2(now.getMonth()+1)}-${pad2(now.getDate())}`;
@@ -1102,10 +902,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   calcBtn.addEventListener("click", calc);
-  fillBtn.addEventListener("click", fillDemo);
+  if(fillBtn) fillBtn.addEventListener("click", fillDemo);
 
-  // Auto-calc once when section exists and user already has values
-  // (won't spam if empty)
   setTimeout(() => {
     if(dateInput.value && timeInput.value && latInput.value && lonInput.value && tzInput.value) calc();
   }, 300);
