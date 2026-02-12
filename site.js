@@ -855,3 +855,258 @@ document.addEventListener("DOMContentLoaded", () => {
   draw();
   requestAnimationFrame((ts)=>{ lastTs = ts; tick(ts); });
 })();
+
+/* ============================
+   Web Calculator (Sun Position)
+   Uses NOAA-style equations
+   + Chart.js altitude curve
+   ============================ */
+
+(function initWebCalculator(){
+  const calcBtn = document.getElementById("calcBtn");
+  const fillBtn = document.getElementById("calcFillBtn");
+
+  const dateInput = document.getElementById("dateInput");
+  const timeInput = document.getElementById("timeInput");
+  const latInput  = document.getElementById("latInput");
+  const lonInput  = document.getElementById("lonInput");
+  const tzInput   = document.getElementById("tzInput");
+
+  const resultEl  = document.getElementById("result");
+  const altCanvas = document.getElementById("altChartCanvas");
+
+  if(!calcBtn || !resultEl || !altCanvas) return;
+
+  const degToRad = (deg) => deg * Math.PI / 180;
+  const radToDeg = (rad) => rad * 180 / Math.PI;
+
+  function dayOfYearUTC(d){
+    const start = Date.UTC(d.getUTCFullYear(), 0, 0);
+    const now = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    return Math.floor((now - start) / 86400000);
+  }
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+
+  function computeFor(date, lat, lon, tz){
+    const day = dayOfYearUTC(date);
+    const hour = date.getHours();
+    const minute = date.getMinutes();
+    const second = date.getSeconds();
+
+    // fractional year (gamma)
+    const gamma = 2 * Math.PI / 365 * (day - 1 + (hour - 12) / 24);
+
+    // equation of time (minutes)
+    const eqtime = 229.18 * (
+      0.000075
+      + 0.001868 * Math.cos(gamma)
+      - 0.032077 * Math.sin(gamma)
+      - 0.014615 * Math.cos(2*gamma)
+      - 0.040849 * Math.sin(2*gamma)
+    );
+
+    // declination (radians)
+    const decl = 0.006918
+      - 0.399912 * Math.cos(gamma)
+      + 0.070257 * Math.sin(gamma)
+      - 0.006758 * Math.cos(2*gamma)
+      + 0.000907 * Math.sin(2*gamma)
+      - 0.002697 * Math.cos(3*gamma)
+      + 0.00148  * Math.sin(3*gamma);
+
+    const timeOffset = eqtime + 4 * lon - 60 * tz; // minutes
+    const tst = hour * 60 + minute + second / 60 + timeOffset; // minutes
+    const ha = (tst / 4) - 180; // degrees
+
+    const haRad = degToRad(ha);
+    const latRad = degToRad(lat);
+
+    const cosZen = Math.sin(latRad) * Math.sin(decl)
+      + Math.cos(latRad) * Math.cos(decl) * Math.cos(haRad);
+
+    const cosZenClamped = Math.max(-1, Math.min(1, cosZen));
+    const zenith = radToDeg(Math.acos(cosZenClamped));
+    const altitude = 90 - zenith;
+
+    // azimuth (degrees, 0..360)
+    const zenRad = Math.acos(cosZenClamped);
+    const sinZen = Math.sin(zenRad);
+
+    let azimuth = NaN;
+    if(sinZen > 1e-8){
+      const sinAz = -(Math.sin(latRad) * Math.cos(decl) - Math.sin(decl) * Math.cos(latRad) * Math.cos(haRad)) / sinZen;
+      const cosAz = (Math.sin(decl) - Math.sin(latRad) * cosZenClamped) / (Math.cos(latRad) * sinZen);
+      azimuth = radToDeg(Math.atan2(sinAz, cosAz));
+      if(azimuth < 0) azimuth += 360;
+    } else {
+      azimuth = 0;
+    }
+
+    // Solar noon (local clock minutes) — simple form from your code
+    const solarNoonMin = 720 - 4 * lon - eqtime;
+    const snoonH = Math.floor(solarNoonMin / 60);
+    const snoonM = Math.floor(solarNoonMin % 60);
+
+    return {
+      day,
+      gamma,
+      eqtime,
+      decl,
+      timeOffset,
+      tst,
+      ha,
+      zenith,
+      azimuth,
+      altitude,
+      solarNoon: `${pad2(snoonH)}:${pad2(snoonM)}`
+    };
+  }
+
+  let altitudeChart = null;
+
+  function renderChart(lat, lon, tz, dayOfYear){
+    const labels = [];
+    const data = [];
+
+    // 0..24 with 15-min step
+    for(let h = 0; h <= 24; h += 0.25){
+      const hh = Math.floor(h);
+      const mm = Math.round((h - hh) * 60);
+
+      labels.push(`${pad2(hh)}:${pad2(mm)}`);
+
+      // build a local Date just for hour sweep (today’s date is fine because we use dayOfYear explicitly via UTC date)
+      // we’ll create a dummy date and then overwrite the UTC day-of-year logic by constructing a real date from that doy:
+      // simplest: compute decl/eqtime with a synthetic date at that hour using the current selected date in outer scope.
+      // So here we will just call computeFor using a Date derived from the selected date at hour h.
+      // We'll pass a "baseDate" set by calc() below.
+      // This function will be called with baseDate set globally.
+    }
+
+    // We need base date from inputs
+    const dateStr = dateInput.value;
+    if(!dateStr) return;
+
+    // Use noon time to avoid timezone drift when building date from string
+    const base = new Date(dateStr + "T12:00:00");
+
+    const points = [];
+    for(let h = 0; h <= 24; h += 0.25){
+      const hh = Math.floor(h);
+      const mm = Math.round((h - hh) * 60);
+      const d = new Date(dateStr + `T${pad2(hh)}:${pad2(mm)}:00`);
+
+      const res = computeFor(d, lat, lon, tz);
+      points.push(res.altitude);
+    }
+
+    // rebuild labels to match points
+    labels.length = 0;
+    for(let h = 0; h <= 24; h += 0.25){
+      const hh = Math.floor(h);
+      const mm = Math.round((h - hh) * 60);
+      labels.push(`${pad2(hh)}:${pad2(mm)}`);
+    }
+
+    const ctx = altCanvas.getContext("2d");
+
+    if(altitudeChart) altitudeChart.destroy();
+
+    altitudeChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "Solar Altitude (°)",
+          data: points,
+          tension: 0.25,
+          pointRadius: 0,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            suggestedMin: -10,
+            suggestedMax: 90,
+            ticks: { color: "rgba(233,238,252,0.75)" },
+            grid: { color: "rgba(255,255,255,0.08)" }
+          },
+          x: {
+            ticks: {
+              color: "rgba(233,238,252,0.55)",
+              maxTicksLimit: 9
+            },
+            grid: { color: "rgba(255,255,255,0.06)" }
+          }
+        },
+        plugins: {
+          legend: {
+            labels: { color: "rgba(233,238,252,0.75)" }
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `Altitude: ${ctx.parsed.y.toFixed(2)}°`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function calc(){
+    const dateStr = dateInput.value;
+    const timeStr = timeInput.value;
+
+    const lat = parseFloat(latInput.value);
+    const lon = parseFloat(lonInput.value);
+    const tz  = parseFloat(tzInput.value);
+
+    if(!dateStr || !timeStr || !Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(tz)){
+      resultEl.textContent = "Please fill all inputs (date, time, latitude, longitude, timezone).";
+      return;
+    }
+
+    const date = new Date(dateStr + "T" + timeStr + ":00");
+
+    const r = computeFor(date, lat, lon, tz);
+
+    resultEl.textContent =
+      `Equation of Time: ${r.eqtime.toFixed(2)} min\n` +
+      `Declination: ${radToDeg(r.decl).toFixed(2)}°\n` +
+      `Time correction: ${r.timeOffset.toFixed(2)} min\n` +
+      `True Solar Time: ${r.tst.toFixed(2)} min\n` +
+      `Hour angle: ${r.ha.toFixed(2)}°\n` +
+      `Zenith angle: ${r.zenith.toFixed(2)}°\n` +
+      `Solar azimuth: ${r.azimuth.toFixed(2)}°\n` +
+      `Solar altitude: ${r.altitude.toFixed(2)}°\n` +
+      `Solar noon: ${r.solarNoon}`;
+
+    renderChart(lat, lon, tz, r.day);
+  }
+
+  function fillDemo(){
+    // Ust-Kamenogorsk-ish demo values (you can change)
+    if(!dateInput.value){
+      const now = new Date();
+      dateInput.value = `${now.getFullYear()}-${pad2(now.getMonth()+1)}-${pad2(now.getDate())}`;
+    }
+    if(!timeInput.value) timeInput.value = "12:00";
+    latInput.value = "49.946";
+    lonInput.value = "82.604";
+    tzInput.value = "5";
+    calc();
+  }
+
+  calcBtn.addEventListener("click", calc);
+  fillBtn.addEventListener("click", fillDemo);
+
+  // Auto-calc once when section exists and user already has values
+  // (won't spam if empty)
+  setTimeout(() => {
+    if(dateInput.value && timeInput.value && latInput.value && lonInput.value && tzInput.value) calc();
+  }, 300);
+})();
