@@ -321,6 +321,144 @@
   </section>
 
 
+  <!-- ANGULAR ERROR ANALYSIS -->
+  <section id="error" class="card">
+  <h2>Angular Error Analysis</h2>
+
+  <p>
+    One of the key performance indicators of a solar tracking system is its
+    angular positioning accuracy. In this research, the angular error between
+    the real Sun position and the panel orientation is evaluated using
+    spherical trigonometry.
+  </p>
+
+  <h3>Angular Error Formula</h3>
+
+  \[
+  \Delta \theta =
+  \arccos\Big(
+  \sin(h_1)\sin(h_2)
+  +
+  \cos(h_1)\cos(h_2)\cos(A_1 - A_2)
+  \Big)
+  \]
+
+  <p class="small">
+    where:
+  </p>
+
+  <ul class="small">
+    <li>\(h_1\) — solar elevation angle</li>
+    <li>\(A_1\) — solar azimuth angle</li>
+    <li>\(h_2\) — panel elevation angle</li>
+    <li>\(A_2\) — panel azimuth angle</li>
+  </ul>
+
+  <p>
+    This equation describes the angular distance between two directions
+    in the celestial sphere and is derived from spherical trigonometry.
+    It represents the deviation between the incoming solar rays and
+    the normal vector of the panel surface.
+  </p>
+
+
+  <h3>Variation of Solar Coordinates</h3>
+
+  <p>
+    During the day, the solar elevation and azimuth vary continuously
+    from sunrise to sunset:
+  </p>
+
+  \[
+  h_1 \in [h_{1,\min}, h_{1,\max}], \quad
+  A_1 \in [A_{1,\min}, A_{1,\max}]
+  \]
+
+  <p>
+    The panel orientation is defined as:
+  </p>
+
+  \[
+  h_2 = h_1 + \delta_h, \quad
+  A_2 = A_1 + \delta_A
+  \]
+
+  <p class="small">
+    where \(\delta_h\) and \(\delta_A\) represent mechanical and algorithmic
+    errors caused by motor resolution, control delay, and system inertia.
+  </p>
+
+
+  <h3>Input Parameters</h3>
+
+  <ul>
+    <li>Latitude: 49.946° N</li>
+    <li>Longitude: 82.604° E</li>
+    <li>Date: October 20, 2025</li>
+    <li>Time zone: UTC +5</li>
+  </ul>
+
+  <p>
+    The time of observation strongly influences the angular error.
+    Minimum error occurs near solar noon, while maximum error is observed
+    in the morning and evening when the Sun is close to the horizon.
+  </p>
+
+
+  <h3>Motor and Control Accuracy</h3>
+
+  <p>
+    The elevation error is mainly determined by the stepper motor resolution.
+    Typical solar trackers use 200–400 step motors.
+  </p>
+
+  <p>
+    With a gear reduction ratio of 1:64, the angular step is approximately:
+  </p>
+
+  \[
+  \delta_h \approx \frac{0.9^\circ}{64} \approx 0.014^\circ \approx 0.01^\circ
+  \]
+
+  <p>
+    The azimuth error is influenced by Earth rotation and control update rate.
+    The Earth rotates 360° in 24 hours, corresponding to:
+  </p>
+
+  \[
+  0.00417^\circ / \text{second}
+  \]
+
+  <p>
+    With a 4-second update interval, the azimuth error becomes:
+  </p>
+
+  \[
+  \delta_A \approx 0.017^\circ \approx 0.02^\circ
+  \]
+
+
+  <h3>Results</h3>
+
+  <p>
+    Based on the experimental and analytical evaluation, the following
+    angular errors were obtained:
+  </p>
+
+  <ul>
+    <li>Minimum error: \( \Delta \theta_{\min} \approx 0.11^\circ \)</li>
+    <li>Maximum error: \( \Delta \theta_{\max} \approx 0.29^\circ \)</li>
+  </ul>
+
+  <p>
+    These results confirm that the proposed algorithm-based tracking system
+    achieves high positioning accuracy and outperforms conventional
+    sensor-based trackers.
+  </p>
+
+  </section>
+
+  
   <!-- PHYSICS -->
   <section id="physics" class="card">
     <h2>Physics & Energy</h2>
