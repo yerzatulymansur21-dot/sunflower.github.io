@@ -57,33 +57,68 @@
 
   <!-- OVERVIEW -->
   <section id="overview" class="card">
-    <h2>Overview</h2>
-    <p>
-      <b>SUNFLOWER</b> is a sensorless solar tracking concept: instead of optical sensors, it uses
-      <b>location + date + time</b> to compute the Sun’s position and control panel orientation.
-      The aim is to improve real-world reliability by reducing sensitivity to dust, clouds, and shading.
-    </p>
+  <h2>Overview</h2>
 
-    <div class="grid2">
-      <div class="mini">
-        <h3>Where the idea came from</h3>
-        <p class="small">
-          Conventional trackers often rely on photodetectors. In real conditions (dust, shading, clouds),
-          sensors may “lose” the Sun and trigger unnecessary searching movements, energy waste, and maintenance.
-          SUNFLOWER avoids this by using solar position mathematics (algorithm-based control).
-        </p>
-      </div>
+  <p>
+    <b>SUNFLOWER</b> is a sensorless solar tracking system based on mathematical algorithms
+    for determining the exact position of the Sun. Instead of using photodetectors,
+    the system applies astronomical formulas based on location, date, and time
+    to control panel orientation with high precision.
+  </p>
 
-      <div class="mini">
-        <h3>Main advantages</h3>
-        <ul>
-          <li>No optical sensors → less sensitivity to dust & shading</li>
-          <li>Fewer unnecessary movements → lower wear and energy use</li>
-          <li>Stable control logic from astronomy-based calculations</li>
-        </ul>
-      </div>
+  <p>
+    The relevance of this research is connected with global climate change and the need
+    to transition toward sustainable energy sources. Improving the efficiency and reliability
+    of solar tracking systems contributes to reducing dependence on fossil fuels
+    and increasing renewable energy production.
+  </p>
+
+  <p>
+    Conventional dual-axis solar trackers usually rely on light sensors, which may produce
+    significant errors under cloudy conditions, shading, dust accumulation, or sensor contamination.
+    In contrast, algorithm-based trackers operate independently of external lighting conditions
+    and determine the Sun’s position through embedded mathematical models.
+  </p>
+
+  <div class="grid2">
+
+    <div class="mini">
+      <h3>Research objective</h3>
+      <p class="small">
+        The main objective of this project is to develop and analyze a solar tracking algorithm
+        based on NOAA astronomical models and to evaluate its performance in comparison
+        with sensor-based tracking systems.
+      </p>
+
+      <p class="small">
+        The system aims to improve tracking accuracy, reduce maintenance requirements,
+        and ensure stable operation under varying environmental conditions.
+      </p>
     </div>
-  </section>
+
+    <div class="mini">
+      <h3>Research findings</h3>
+
+      <ul>
+        <li>Algorithm-based tracking shows 10–15 times higher accuracy than sensor-based systems</li>
+        <li>Average angular error is reduced to approximately 0.01°–0.03°</li>
+        <li>Performance is independent of weather and lighting conditions</li>
+        <li>Energy consumption is reduced due to fewer corrective movements</li>
+        <li>Maintenance requirements are minimized</li>
+        <li>System can operate at any geographic location worldwide</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="note">
+    The developed approach integrates spherical trigonometry, harmonic analysis,
+    and numerical methods to determine solar zenith and azimuth angles and to optimize
+    motor positioning for maximum energy capture.
+  </div>
+
+</section>
+
 
 
   <!-- CLIMATE / WHY IT MATTERS -->
