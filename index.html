@@ -60,6 +60,7 @@
         <a class="btn ghost" href="#error">Angular error</a>
         <a class="btn ghost" href="#physics">Physics</a>
         <a class="btn ghost" href="#costs">Prices</a>
+        <a class="btn ghost" href="#calculator">Calculator</a>
       </div>
 
     </div>
@@ -584,6 +585,65 @@
       </tbody>
     </table>
 
+  </section>
+
+    <!-- WEB CALCULATOR -->
+  <section id="calculator" class="card">
+    <h2>Web Calculator (Sun Position)</h2>
+    <p class="small">
+      Enter date/time and coordinates to compute Equation of Time, declination, time correction,
+      true solar time, hour angle, zenith, azimuth, altitude, and solar noon.
+    </p>
+
+    <div class="calcGrid">
+      <div class="calcForm">
+
+        <label class="calcLabel">
+          Date
+          <input class="calcInput" type="date" id="dateInput">
+        </label>
+
+        <label class="calcLabel">
+          Time (HH:MM)
+          <input class="calcInput" type="time" id="timeInput">
+        </label>
+
+        <label class="calcLabel">
+          Latitude (e.g., 49.946)
+          <input class="calcInput" type="number" id="latInput" step="0.0001" placeholder="49.946">
+        </label>
+
+        <label class="calcLabel">
+          Longitude (e.g., 82.604)
+          <input class="calcInput" type="number" id="lonInput" step="0.0001" placeholder="82.604">
+        </label>
+
+        <label class="calcLabel">
+          Time zone (UTC, e.g., +5)
+          <input class="calcInput" type="number" id="tzInput" step="0.5" placeholder="5">
+        </label>
+
+        <div class="calcBtns">
+          <button class="btn primary" type="button" id="calcBtn">Calculate</button>
+          <button class="btn" type="button" id="calcFillBtn">Use Ust-Kamenogorsk (demo)</button>
+        </div>
+
+        <div class="small calcHint">
+          Tip: timezone is the standard UTC offset (e.g., Kazakhstan is often UTC+5 or UTC+6 depending on region).
+        </div>
+
+      </div>
+
+      <div class="calcOut">
+        <h3 class="calcH3">Results</h3>
+        <pre class="calcPre" id="result">—</pre>
+
+        <h3 class="calcH3">Solar altitude over the day</h3>
+        <div class="chartBox">
+          <canvas id="altChartCanvas" height="170"></canvas>
+        </div>
+      </div>
+    </div>
   </section>
 
 </main>
