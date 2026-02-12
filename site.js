@@ -376,3 +376,482 @@ document.addEventListener("DOMContentLoaded", () => {
     if(e.key === "Escape") closeFormulaPanel();
   });
 });
+
+/* ============================
+   3-System Tracking Demo
+   ============================ */
+
+(function initTrackerDemo(){
+  const canvas = document.getElementById("trackerDemo");
+  if(!canvas) return;
+
+  const weatherSelect = document.getElementById("weatherSelect");
+  const speedRange = document.getElementById("speedRange");
+  const speedVal = document.getElementById("speedVal");
+  const togglePlay = document.getElementById("togglePlay");
+  const resetDemo = document.getElementById("resetDemo");
+
+  const ctx = canvas.getContext("2d", { alpha: false });
+
+  // State
+  let weather = (weatherSelect && weatherSelect.value) || "sunny";
+  let secondsPerDay = Number((speedRange && speedRange.value) || 12);
+  let running = true;
+
+  // timeOfDay: 0..1 (sunrise..sunset)
+  let t = 0;                 // normalized day progress
+  let lastTs = performance.now();
+
+  // sensor tracker internal states
+  let sensorLocked = true;
+  let sensorAngle = 0;
+  let sensorHuntPhase = 0;
+
+  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+  function resize(){
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const cssW = canvas.clientWidth || 1000;
+    const cssH = canvas.height; // CSS height comes from attribute
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function setWeather(v){
+    weather = v;
+    // reset sensor lock a bit (so user sees behavior change)
+    sensorLocked = true;
+    sensorHuntPhase = 0;
+  }
+
+  function setSpeed(v){
+    secondsPerDay = Number(v);
+    if(speedVal) speedVal.textContent = String(secondsPerDay);
+  }
+
+  function reset(){
+    t = 0;
+    sensorLocked = true;
+    sensorAngle = 0;
+    sensorHuntPhase = 0;
+  }
+
+  function sunPos(norm){
+    // arc: left -> right, higher in middle
+    // norm 0..1
+    const x = norm;
+    const y = Math.sin(Math.PI * norm); // 0..1..0
+    return { x, y };
+  }
+
+  function smoothStep(a, b, x){
+    const t = clamp((x - a) / (b - a), 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+
+  function drawRoundedRect(x,y,w,h,r){
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr, y);
+    ctx.arcTo(x+w, y, x+w, y+h, rr);
+    ctx.arcTo(x+w, y+h, x, y+h, rr);
+    ctx.arcTo(x, y+h, x, y, rr);
+    ctx.arcTo(x, y, x+w, y, rr);
+    ctx.closePath();
+  }
+
+  function draw(){
+    const W = canvas.clientWidth || 1000;
+    const H = canvas.height; // CSS pixels
+
+    // Background (dark, blue)
+    ctx.fillStyle = "#070a14";
+    ctx.fillRect(0,0,W,H);
+
+    // subtle gradient stripe
+    const g = ctx.createLinearGradient(0,0,W,0);
+    g.addColorStop(0, "rgba(30,90,160,0.20)");
+    g.addColorStop(0.55, "rgba(0,0,0,0)");
+    g.addColorStop(1, "rgba(50,130,220,0.22)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+
+    const pad = 16;
+    const colGap = 14;
+    const cols = 3;
+    const colW = (W - pad*2 - colGap*(cols-1)) / cols;
+    const cardH = H - pad*2;
+    const top = pad;
+    const lefts = [
+      pad,
+      pad + (colW + colGap),
+      pad + 2*(colW + colGap)
+    ];
+
+    // Sun path area inside each card
+    const skyTop = top + 14;
+    const skyH = cardH * 0.58;
+    const groundY = skyTop + skyH;
+
+    // Sun position
+    const sp = sunPos(t);
+    const sunXn = sp.x;
+    const sunYn = sp.y; // 0..1..0
+
+    // Weather: irradiance and effects
+    let irradiance = 1.0;
+    let cloudCover = 0.0;   // 0..1
+    let sensorDirty = 0.0;  // 0..1
+
+    if(weather === "cloudy"){
+      cloudCover = 0.7;
+      irradiance = 0.55;
+    } else if(weather === "dusty"){
+      sensorDirty = 0.9;
+      irradiance = 0.85; // still sunny, but sensor is blocked
+    }
+
+    // If near sunrise/sunset, lower irradiance a bit (soft)
+    const edgeDim = 1 - smoothStep(0.05, 0.18, t) * smoothStep(0.95, 0.82, t);
+    // edgeDim ~ 1 at edges; invert to dim edges
+    const dayFactor = 0.65 + 0.35 * Math.sin(Math.PI*t);
+    irradiance *= dayFactor;
+
+    // calculate "true" sun angle for panels
+    // Map sun position to an angle for tracking: -60..+60 degrees
+    const sunAngle = (-60 + 120 * sunXn) * Math.PI/180;
+
+    // 1) Fixed panel: constant tilt
+    const fixedAngle = 20 * Math.PI/180;
+
+    // 2) Sensor tracker: follows when locked, loses in cloudy/dusty, hunts
+    // Losing probability depends on cloudCover or sensorDirty.
+    // Also add higher loss at low sun (morning/evening).
+    const lowSun = (sunYn < 0.25) ? 1 : 0;
+    const lossPressure = clamp(0.15 + 0.95*(cloudCover + sensorDirty) + 0.25*lowSun, 0, 1);
+
+    // randomly drop lock sometimes
+    if(sensorLocked){
+      // chance per frame scaled by lossPressure
+      const p = 0.0025 * lossPressure;
+      if(Math.random() < p) sensorLocked = false;
+    } else {
+      // regain lock if weather ok-ish and sun high
+      const regain = (1 - lossPressure) * (sunYn > 0.25 ? 1 : 0.35);
+      const p = 0.015 * regain;
+      if(Math.random() < p) sensorLocked = true;
+    }
+
+    // update sensor angle
+    if(sensorLocked){
+      // smooth follow
+      sensorAngle += (sunAngle - sensorAngle) * 0.08;
+    } else {
+      // hunting motion
+      sensorHuntPhase += 0.12;
+      const hunt = Math.sin(sensorHuntPhase) * (35*Math.PI/180);
+      sensorAngle += (hunt - sensorAngle) * 0.06;
+    }
+
+    // 3) Algorithm tracker: always follows precisely
+    const algoAngle = sunAngle;
+
+    // Draw 3 cards
+    const systems = [
+      { name:"Fixed Panel", angle: fixedAngle, mode:"STATIC", color:"rgba(255,255,255,.65)", status:"OK" },
+      { name:"Sensor Tracker", angle: sensorAngle, mode:"SENSOR", color:"rgba(110,168,255,.85)", status: sensorLocked ? "TRACKING" : "LOST" },
+      { name:"SUNFLOWER", angle: algoAngle, mode:"ALGO", color:"rgba(126,231,135,.90)", status:"LOCKED" }
+    ];
+
+    for(let i=0;i<3;i++){
+      const x0 = lefts[i];
+      const y0 = top;
+      const w = colW;
+      const h = cardH;
+
+      // card
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "rgba(255,255,255,0.04)";
+      ctx.strokeStyle = "rgba(255,255,255,0.10)";
+      drawRoundedRect(x0,y0,w,h,18);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      // title
+      ctx.fillStyle = "rgba(233,238,252,0.92)";
+      ctx.font = "700 16px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.fillText(systems[i].name, x0+14, y0+26);
+
+      // status pill
+      const st = systems[i].status;
+      const pillW = ctx.measureText(st).width + 20;
+      const pillX = x0 + w - pillW - 14;
+      const pillY = y0 + 12;
+      ctx.fillStyle = (i===1 && st==="LOST") ? "rgba(255,120,120,0.16)" : "rgba(255,255,255,0.06)";
+      ctx.strokeStyle = (i===1 && st==="LOST") ? "rgba(255,120,120,0.35)" : "rgba(255,255,255,0.10)";
+      drawRoundedRect(pillX, pillY, pillW, 22, 999);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = (i===1 && st==="LOST") ? "rgba(255,170,170,0.95)" : "rgba(233,238,252,0.78)";
+      ctx.font = "700 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.fillText(st, pillX+10, pillY+15);
+
+      // sky region
+      const skyX = x0 + 12;
+      const skyY = skyTop;
+      const skyW = w - 24;
+      const skyH2 = skyH - 10;
+
+      // sky background
+      const skyG = ctx.createLinearGradient(skyX, skyY, skyX, skyY+skyH2);
+      skyG.addColorStop(0, "rgba(12,18,40,0.95)");
+      skyG.addColorStop(1, "rgba(8,10,22,0.95)");
+      ctx.fillStyle = skyG;
+      drawRoundedRect(skyX, skyY, skyW, skyH2, 16);
+      ctx.fill();
+
+      // sun arc (path)
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for(let k=0;k<=60;k++){
+        const tt = k/60;
+        const p = sunPos(tt);
+        const px = skyX + p.x * skyW;
+        const py = skyY + (1 - p.y) * (skyH2*0.78) + skyH2*0.08;
+        if(k===0) ctx.moveTo(px,py);
+        else ctx.lineTo(px,py);
+      }
+      ctx.stroke();
+
+      // clouds (only cloudy)
+      if(weather === "cloudy"){
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = "rgba(200,220,255,0.10)";
+        const baseY = skyY + 34 + Math.sin(t*6.28 + i)*6;
+        for(let c=0;c<4;c++){
+          const cx = skyX + ( (t*0.6 + c*0.28) % 1 ) * skyW;
+          const cy = baseY + c*8;
+          drawRoundedRect(cx-40, cy, 86, 26, 999);
+          ctx.fill();
+          drawRoundedRect(cx-10, cy-14, 56, 24, 999);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // sun position in this card
+      const sunPx = skyX + sunXn * skyW;
+      const sunPy = skyY + (1 - sunYn) * (skyH2*0.78) + skyH2*0.08;
+
+      // sun glow (dimmed by clouds)
+      const sunAlpha = clamp(0.25 + 0.75*(1-cloudCover), 0.15, 1);
+      ctx.save();
+      const glow = ctx.createRadialGradient(sunPx, sunPy, 4, sunPx, sunPy, 52);
+      glow.addColorStop(0, `rgba(255,220,140,${0.30*sunAlpha})`);
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(sunPx, sunPy, 52, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      // sun disk
+      ctx.fillStyle = `rgba(255,220,140,${0.90*sunAlpha})`;
+      ctx.beginPath();
+      ctx.arc(sunPx, sunPy, 6, 0, Math.PI*2);
+      ctx.fill();
+
+      // ground line
+      const gy = groundY;
+      ctx.strokeStyle = "rgba(255,255,255,0.10)";
+      ctx.beginPath();
+      ctx.moveTo(x0+12, gy);
+      ctx.lineTo(x0+w-12, gy);
+      ctx.stroke();
+
+      // draw panel + stand
+      const panelBaseX = x0 + w*0.5;
+      const panelBaseY = gy + 84;
+
+      // stand
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(panelBaseX, gy+10);
+      ctx.lineTo(panelBaseX, panelBaseY-10);
+      ctx.stroke();
+
+      // tracker head
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.strokeStyle = "rgba(255,255,255,0.12)";
+      drawRoundedRect(panelBaseX-26, panelBaseY-14, 52, 28, 12);
+      ctx.fill(); ctx.stroke();
+
+      // sensors (only for sensor tracker)
+      if(i===1){
+        ctx.save();
+        ctx.fillStyle = sensorDirty > 0.5 ? "rgba(255,160,120,0.65)" : "rgba(233,238,252,0.35)";
+        ctx.beginPath(); ctx.arc(panelBaseX-10, panelBaseY-2, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(panelBaseX+10, panelBaseY-2, 3, 0, Math.PI*2); ctx.fill();
+
+        // dirty overlay indicator
+        if(weather === "dusty"){
+          ctx.fillStyle = "rgba(255,170,120,0.12)";
+          drawRoundedRect(panelBaseX-30, panelBaseY-30, 60, 18, 8);
+          ctx.fill();
+          ctx.fillStyle = "rgba(255,190,160,0.85)";
+          ctx.font = "700 11px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+          ctx.fillText("DIRTY SENSOR", panelBaseX-26, panelBaseY-18);
+        }
+        ctx.restore();
+      }
+
+      // panel rectangle rotated by system angle
+      const ang = systems[i].angle;
+
+      // ray from sun to panel direction indicator (only if sun above horizon)
+      const sunAbove = (sunYn > 0.02);
+      if(sunAbove){
+        ctx.save();
+        const rayAlpha = 0.10 + 0.18 * irradiance;
+        ctx.strokeStyle = `rgba(255,220,140,${rayAlpha})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(sunPx, sunPy);
+        ctx.lineTo(panelBaseX, panelBaseY);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.translate(panelBaseX, panelBaseY);
+      ctx.rotate(ang);
+      ctx.fillStyle = "rgba(15,23,48,0.85)";
+      ctx.strokeStyle = "rgba(255,255,255,0.16)";
+      ctx.lineWidth = 2;
+
+      // panel (w x h)
+      const pw = 120, ph = 58;
+      drawRoundedRect(-pw/2, -ph/2, pw, ph, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      // panel grid lines
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 1;
+      for(let gx= -pw/2 + 18; gx < pw/2; gx += 18){
+        ctx.beginPath();
+        ctx.moveTo(gx, -ph/2+6);
+        ctx.lineTo(gx, ph/2-6);
+        ctx.stroke();
+      }
+      for(let gy2= -ph/2 + 18; gy2 < ph/2; gy2 += 18){
+        ctx.beginPath();
+        ctx.moveTo(-pw/2+6, gy2);
+        ctx.lineTo(pw/2-6, gy2);
+        ctx.stroke();
+      }
+
+      // highlight border (system color)
+      ctx.strokeStyle = systems[i].color;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.8;
+      drawRoundedRect(-pw/2, -ph/2, pw, ph, 10);
+      ctx.stroke();
+      ctx.restore();
+
+      // compute yield (cos of angular error) * irradiance
+      // treat sun below horizon -> 0
+      const err = Math.abs(sunAngle - ang);
+      let align = Math.cos(err);
+      align = clamp(align, 0, 1);
+      let sysIrr = irradiance;
+
+      // in cloudy, all systems receive less irradiance (already applied),
+      // but sensor tracker when LOST produces additional loss (unnecessary movement / misalignment)
+      if(i===1 && !sensorLocked) align *= 0.35;
+
+      // fixed panel loses in afternoon (misalignment naturally)
+      // already captured by cos(err)
+
+      const yieldVal = (sunAbove ? (align * sysIrr) : 0);
+
+      // yield bar
+      const barX = x0 + 14;
+      const barY = y0 + h - 46;
+      const barW = w - 28;
+      const barH = 14;
+
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.strokeStyle = "rgba(255,255,255,0.12)";
+      drawRoundedRect(barX, barY, barW, barH, 999);
+      ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle = systems[i].color;
+      const fillW = barW * yieldVal;
+      drawRoundedRect(barX, barY, fillW, barH, 999);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(233,238,252,0.75)";
+      ctx.font = "600 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      const pct = Math.round(yieldVal*100);
+      ctx.fillText(`Yield: ${pct}%`, barX, barY + 32);
+
+      // small caption about failure
+      if(i===1 && !sensorLocked){
+        ctx.fillStyle = "rgba(255,170,170,0.85)";
+        ctx.font = "700 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+        ctx.fillText("Sensor lost the Sun → hunting", barX, barY + 52);
+      }
+    }
+
+    // Footer hint line
+    ctx.fillStyle = "rgba(233,238,252,0.55)";
+    ctx.font = "600 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    const label = (weather === "sunny") ? "Sunny conditions" : (weather === "cloudy") ? "Cloudy (sensor instability)" : "Dusty (dirty sensor)";
+    ctx.fillText(label, 18, H - 10);
+  }
+
+  function tick(ts){
+    const dt = Math.min(0.05, (ts - lastTs) / 1000);
+    lastTs = ts;
+
+    if(running){
+      const dayRate = 1 / Math.max(4, secondsPerDay);
+      t += dt * dayRate;
+      if(t > 1) t -= 1;
+    }
+
+    draw();
+    requestAnimationFrame(tick);
+  }
+
+  // Events
+  window.addEventListener("resize", () => { resize(); });
+
+  if(weatherSelect){
+    weatherSelect.addEventListener("change", (e) => setWeather(e.target.value));
+  }
+  if(speedRange){
+    speedRange.addEventListener("input", (e) => setSpeed(e.target.value));
+    setSpeed(speedRange.value);
+  }
+  if(togglePlay){
+    togglePlay.addEventListener("click", () => {
+      running = !running;
+      togglePlay.textContent = running ? "Pause" : "Play";
+    });
+  }
+  if(resetDemo){
+    resetDemo.addEventListener("click", () => reset());
+  }
+
+  // Init
+  resize();
+  draw();
+  requestAnimationFrame((ts)=>{ lastTs = ts; tick(ts); });
+})();
