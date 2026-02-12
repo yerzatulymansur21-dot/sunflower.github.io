@@ -22,54 +22,46 @@
 
 <body>
 
-<header class="hero">
-  <div class="container heroCenter">
-
-    <div class="brand heroBrand">
-      <div class="logo">SF</div>
-      <div class="heroText">
-        <h1>SUNFLOWER</h1>
-        <div class="subtitle">Sensorless Algorithm-Based Solar Tracking System</div>
-        <div class="tagline">Higher yield · Lower maintenance · Reliable control</div>
-      </div>
-    </div>
-
-    <div class="chips heroChips">
-      <span class="chip">GitHub Pages Demo</span>
-      <span class="chip">Chart.js climate chart</span>
-      <span class="chip">MathJax formulas</span>
-      <span class="chip">PV comparison</span>
-    </div>
-
-    <div class="heroActions heroNav">
-      <a class="btn primary" href="#overview">Overview</a>
-      <a class="btn" href="#climate">Why it matters</a>
-      <a class="btn" href="#comparison">Comparison</a>
-      <a class="btn" href="#sources">Sources</a>
-      <a class="btn ghost" href="#formulas">Formulas</a>
-      <a class="btn ghost" href="#physics">Physics</a>
-      <a class="btn ghost" href="#costs">Prices</a>
-    </div>
-
+<!-- ✅ HERO (CENTERED + NAV BUTTONS BACK) -->
+<header class="hero" id="top">
+  <div class="heroBg">
+    <div class="heroBlob b1"></div>
+    <div class="heroBlob b2"></div>
+    <div class="heroBlob b3"></div>
+    <div class="heroGlass"></div>
   </div>
-</header>
 
+  <div class="container heroInner">
+    <div class="heroContent">
 
-    <div class="chips">
-      <span class="chip">GitHub Pages Demo</span>
-      <span class="chip">Chart.js climate chart</span>
-      <span class="chip">MathJax formulas</span>
-      <span class="chip">PV comparison</span>
-    </div>
+      <div class="brand heroBrand">
+        <div class="logo">SF</div>
+        <div class="brandText">
+          <h1>SUNFLOWER</h1>
+          <div class="subtitle">Sensorless Algorithm-Based Solar Tracking System</div>
+          <div class="tagline">Higher yield · Lower maintenance · Reliable control</div>
+        </div>
+      </div>
 
-    <div class="heroActions">
-      <a class="btn primary" href="#overview">Overview</a>
-      <a class="btn" href="#climate">Why it matters</a>
-      <a class="btn" href="#comparison">Comparison</a>
-      <a class="btn" href="#sources">Sources</a>
-      <a class="btn ghost" href="#formulas">Formulas</a>
-      <a class="btn ghost" href="#physics">Physics</a>
-      <a class="btn ghost" href="#costs">Prices</a>
+      <div class="chips heroChips">
+        <span class="chip">GitHub Pages Demo</span>
+        <span class="chip">Chart.js climate chart</span>
+        <span class="chip">MathJax formulas</span>
+        <span class="chip">PV comparison</span>
+      </div>
+
+      <!-- ✅ MAIN NAV BUTTONS (RESTORED) -->
+      <div class="heroActions heroNav">
+        <a class="btn primary" href="#overview">Overview</a>
+        <a class="btn" href="#climate">Why it matters</a>
+        <a class="btn" href="#comparison">Comparison</a>
+        <a class="btn" href="#sources">Sources</a>
+        <a class="btn ghost" href="#formulas">Formulas</a>
+        <a class="btn ghost" href="#error">Angular error</a>
+        <a class="btn ghost" href="#physics">Physics</a>
+        <a class="btn ghost" href="#costs">Prices</a>
+      </div>
+
     </div>
   </div>
 </header>
@@ -264,7 +256,6 @@
     <h2>Formulas (Exact Sun Position)</h2>
     <p class="small">
       Click a symbol to open: <b>definition</b>, <b>derivation/proof</b>, and the <b>final equation</b>.
-      (We will fill the content from your document in <code>site.js</code>.)
     </p>
 
     <div class="formulaGrid11">
@@ -383,13 +374,7 @@
     the normal vector of the panel surface.
   </p>
 
-
   <h3>Variation of Solar Coordinates</h3>
-
-  <p>
-    During the day, the solar elevation and azimuth vary continuously
-    from sunrise to sunset:
-  </p>
 
   \[
   h_1 \in [h_{1,\min}, h_{1,\max}], \quad
@@ -410,7 +395,6 @@
     errors caused by motor resolution, control delay, and system inertia.
   </p>
 
-
   <h3>Input Parameters</h3>
 
   <ul>
@@ -426,46 +410,21 @@
     in the morning and evening when the Sun is close to the horizon.
   </p>
 
-
   <h3>Motor and Control Accuracy</h3>
-
-  <p>
-    The elevation error is mainly determined by the stepper motor resolution.
-    Typical solar trackers use 200–400 step motors.
-  </p>
-
-  <p>
-    With a gear reduction ratio of 1:64, the angular step is approximately:
-  </p>
 
   \[
   \delta_h \approx \frac{0.9^\circ}{64} \approx 0.014^\circ \approx 0.01^\circ
   \]
 
-  <p>
-    The azimuth error is influenced by Earth rotation and control update rate.
-    The Earth rotates 360° in 24 hours, corresponding to:
-  </p>
-
   \[
   0.00417^\circ / \text{second}
   \]
-
-  <p>
-    With a 4-second update interval, the azimuth error becomes:
-  </p>
 
   \[
   \delta_A \approx 0.017^\circ \approx 0.02^\circ
   \]
 
-
   <h3>Results</h3>
-
-  <p>
-    Based on the experimental and analytical evaluation, the following
-    angular errors were obtained:
-  </p>
 
   <ul>
     <li>Minimum error: \( \Delta \theta_{\min} \approx 0.11^\circ \)</li>
@@ -480,7 +439,7 @@
 
   </section>
 
-  
+
   <!-- PHYSICS -->
   <section id="physics" class="card">
     <h2>Physics & Energy</h2>
@@ -505,7 +464,7 @@
   </section>
 
 
-  <!-- COSTS (UPDATED: AMAZON LINKS ONLY) -->
+  <!-- COSTS (AMAZON LINKS ONLY) -->
   <section id="costs" class="card">
     <h2>Prices & BOM</h2>
 
@@ -581,9 +540,6 @@
       </tbody>
     </table>
 
-    <p class="small note">
-      Amazon links are provided for quick price checking and purchase reference.
-    </p>
   </section>
 
 </main>
