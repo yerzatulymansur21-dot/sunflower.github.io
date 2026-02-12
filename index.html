@@ -181,6 +181,50 @@
   </section>
 
 
+    <!-- DEMO ANIMATION (3-system comparison) -->
+  <section id="demo" class="card demoCard">
+    <div class="demoHead">
+      <div>
+        <h2>Tracking Demo (Comparison)</h2>
+        <p class="small">
+          One-day simulation: fixed panel vs sensor-based tracker vs SUNFLOWER (algorithm).
+          Use weather to show why algorithm-based tracking is more reliable.
+        </p>
+      </div>
+
+      <div class="demoControls" aria-label="Demo controls">
+        <label class="ctrl">
+          Weather
+          <select id="weatherSelect">
+            <option value="sunny">Sunny</option>
+            <option value="cloudy">Cloudy</option>
+            <option value="dusty">Dusty (dirty sensor)</option>
+          </select>
+        </label>
+
+        <label class="ctrl">
+          Speed
+          <input id="speedRange" type="range" min="6" max="24" step="1" value="12" />
+          <span class="ctrlHint"><span id="speedVal">12</span>s/day</span>
+        </label>
+
+        <button id="togglePlay" class="btn primary" type="button">Pause</button>
+        <button id="resetDemo" class="btn" type="button">Reset</button>
+      </div>
+    </div>
+
+    <div class="demoWrap">
+      <canvas id="trackerDemo" height="320"></canvas>
+    </div>
+
+    <div class="small demoLegend">
+      <span class="legendDot d1"></span> Fixed panel
+      <span class="legendDot d2"></span> Sensor-based tracker
+      <span class="legendDot d3"></span> SUNFLOWER (algorithm)
+    </div>
+  </section>
+
+  
   <!-- COMPARISON -->
   <section id="comparison" class="card">
     <h2>Comparison</h2>
