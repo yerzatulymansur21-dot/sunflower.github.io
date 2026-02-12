@@ -7,8 +7,8 @@
   --text:#e9eefc;
   --muted: rgba(233,238,252,.70);
 
-  --accent:#66d9ff;   /* cyan */
-  --accent2:#5b86ff;  /* blue */
+  --accent:#66d9ff;
+  --accent2:#5b86ff;
   --line: rgba(255,255,255,.12);
 
   --shadow: 0 18px 50px rgba(0,0,0,.45);
@@ -41,9 +41,7 @@ body{
   padding: 22px;
 }
 
-/* =========================
-   HERO (CENTERED, STRIPE-LIKE)
-   ========================= */
+/* HERO */
 header.hero{
   position:relative;
   min-height: 240px;
@@ -97,17 +95,13 @@ header.hero{
     radial-gradient(900px 340px at 50% 10%, rgba(255,255,255,.07), transparent 60%);
 }
 
-/* center content */
-.heroInner{
-  position:relative;
-  z-index: 1;
-}
+.heroInner{ position:relative; z-index:1; }
 
 .heroContent{
   display:flex;
   flex-direction:column;
-  align-items:center;      /* ✅ horizontal center */
-  text-align:center;       /* ✅ text center */
+  align-items:center;
+  text-align:center;
   gap: 16px;
 }
 
@@ -167,12 +161,12 @@ h1{
   backdrop-filter: blur(12px);
 }
 
-/* ✅ HERO NAV BUTTONS */
+/* hero nav */
 .heroActions{
   display:flex;
   flex-wrap:wrap;
   gap:10px;
-  justify-content:center; /* ✅ center buttons */
+  justify-content:center;
   margin-top: 6px;
 }
 
@@ -181,11 +175,12 @@ h1{
   text-decoration:none;
   color: var(--text);
   padding: 10px 14px;
-  border-radius: 999px;               /* ✅ pill style */
+  border-radius: 999px;
   border: 1px solid rgba(255,255,255,.14);
   background: rgba(10,18,32,.35);
   backdrop-filter: blur(10px);
   transition: transform .15s ease, border-color .15s ease, background .15s ease;
+  cursor:pointer;
 }
 
 .btn:hover{
@@ -204,9 +199,7 @@ h1{
   border-color: rgba(91,134,255,.25);
 }
 
-/* =========================
-   CARDS / CONTENT
-   ========================= */
+/* cards */
 .card{
   background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05));
   border: 1px solid rgba(255,255,255,.10);
@@ -216,16 +209,8 @@ h1{
   box-shadow: var(--shadow);
 }
 
-h2{
-  margin:0 0 10px;
-  font-size: 26px;
-}
-
-h3{
-  margin: 18px 0 8px;
-  font-size: 17px;
-  color: rgba(233,238,252,.94);
-}
+h2{ margin:0 0 10px; font-size: 26px; }
+h3{ margin: 18px 0 8px; font-size: 17px; color: rgba(233,238,252,.94); }
 
 .note{
   margin-top: 14px;
@@ -236,12 +221,8 @@ h3{
   color: rgba(233,238,252,.80);
 }
 
-.small{
-  font-size: 13px;
-  color: var(--muted);
-}
+.small{ font-size: 13px; color: var(--muted); }
 
-/* grid */
 .grid2{
   display:grid;
   grid-template-columns: 1fr 1fr;
@@ -256,11 +237,9 @@ h3{
   background: rgba(15,23,48,.22);
 }
 
-/* lists */
 ul{ margin: 10px 0 0 18px; }
 li{ margin: 4px 0; }
 
-/* tables */
 table{
   width:100%;
   border-collapse: collapse;
@@ -315,10 +294,7 @@ tr:hover td{ background: rgba(91,134,255,.06); }
   align-items:center;
 }
 
-.barLabel{
-  color: rgba(233,238,252,.72);
-  font-size: 14px;
-}
+.barLabel{ color: rgba(233,238,252,.72); font-size: 14px; }
 
 .barTrack{
   height: 14px;
@@ -340,7 +316,6 @@ tr:hover td{ background: rgba(91,134,255,.06); }
   color: rgba(233,238,252,.86);
 }
 
-/* chart box */
 .chartBox{
   border:1px solid var(--line);
   border-radius:14px;
@@ -349,7 +324,10 @@ tr:hover td{ background: rgba(91,134,255,.06); }
   margin-top: 10px;
 }
 
-/* kpis */
+.chartBoxTall{
+  height: 240px;
+}
+
 .kpis{
   display:grid;
   grid-template-columns: 1fr 1fr;
@@ -364,19 +342,10 @@ tr:hover td{ background: rgba(91,134,255,.06); }
   background: rgba(15,23,48,.22);
 }
 
-.kpiNum{
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--accent);
-}
+.kpiNum{ font-size: 22px; font-weight: 800; color: var(--accent); }
+.kpiLabel{ margin-top:6px; color: var(--muted); font-size: 13px; }
 
-.kpiLabel{
-  margin-top:6px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-/* formulas tiles */
+/* formulas */
 .formulaGrid11{
   display:grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -401,19 +370,9 @@ tr:hover td{ background: rgba(91,134,255,.06); }
   background: rgba(102,217,255,.08);
 }
 
-.tileSymbol{
-  font-size: 44px;
-  font-weight: 800;
-  line-height: 1;
-  margin-bottom: 10px;
-}
+.tileSymbol{ font-size: 44px; font-weight: 800; line-height: 1; margin-bottom: 10px; }
+.tileLabel{ font-size: 14px; color: rgba(233,238,252,.78); }
 
-.tileLabel{
-  font-size: 14px;
-  color: rgba(233,238,252,.78);
-}
-
-/* panel */
 .formulaPanel{
   margin-top: 14px;
   border: 1px solid rgba(255,255,255,.14);
@@ -448,24 +407,13 @@ tr:hover td{ background: rgba(91,134,255,.06); }
   background: rgba(102,217,255,.10);
 }
 
-.panelBody{
-  padding: 14px;
-}
+.panelBody{ padding: 14px; }
 
-/* MathJax overflow fix */
 mjx-container{ overflow-x:auto; overflow-y:hidden; }
 
-/* links */
-a{
-  color: rgba(102,217,255,.95);
-}
+a{ color: rgba(102,217,255,.95); }
+a:hover{ color: rgba(102,217,255,1); text-decoration: underline; }
 
-a:hover{
-  color: rgba(102,217,255,1);
-  text-decoration: underline;
-}
-
-/* footer */
 footer{
   border-top: 1px solid rgba(255,255,255,.08);
   margin-top: 18px;
@@ -483,10 +431,8 @@ footer{
   header.hero{ padding: 44px 0 28px; }
 }
 
-/* ===== Demo (3-system animation) ===== */
-.demoCard{
-  padding: 20px;
-}
+/* ===== Demo ===== */
+.demoCard{ padding: 20px; }
 
 .demoHead{
   display:flex;
@@ -523,9 +469,7 @@ footer{
   outline:none;
 }
 
-.ctrl input[type="range"]{
-  width: 160px;
-}
+.ctrl input[type="range"]{ width: 160px; }
 
 .ctrlHint{
   font-size:12px;
@@ -545,10 +489,7 @@ footer{
   box-shadow: 0 20px 60px rgba(0,0,0,.35);
 }
 
-#trackerDemo{
-  width:100%;
-  display:block;
-}
+#trackerDemo{ width:100%; display:block; }
 
 .demoLegend{
   display:flex;
@@ -608,9 +549,7 @@ footer{
   outline:none;
 }
 
-.calcInput::placeholder{
-  color: rgba(233,238,252,0.35);
-}
+.calcInput::placeholder{ color: rgba(233,238,252,0.35); }
 
 .calcBtns{
   display:flex;
@@ -624,9 +563,7 @@ footer{
   color: rgba(233,238,252,0.55);
 }
 
-.calcH3{
-  margin-top: 0;
-}
+.calcH3{ margin-top: 0; }
 
 .calcPre{
   white-space: pre-wrap;
@@ -639,6 +576,7 @@ footer{
   min-height: 140px;
 }
 
+/* responsive calculator */
 @media (max-width: 900px){
   .calcGrid{ grid-template-columns: 1fr; }
 }
