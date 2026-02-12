@@ -7,10 +7,10 @@
 
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- Chart.js (for temperature chart) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Chart.js (for climate chart) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-  <!-- MathJax (for formulas) -->
+  <!-- MathJax -->
   <script>
     window.MathJax = {
       tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] },
@@ -22,412 +22,349 @@
 
 <body>
 
-<!-- Top Nav (Stripe-like) -->
-<header class="topbar" id="top">
-  <div class="wrap topbarInner">
-    <a class="brand" href="#top" aria-label="SUNFLOWER home">
-      <span class="brandMark">SF</span>
-      <span class="brandName">SUNFLOWER</span>
-    </a>
+<header class="hero">
+  <div class="container">
+    <div class="brand">
+      <div class="logo">SF</div>
+      <div>
+        <h1>SUNFLOWER</h1>
+        <div class="subtitle">Sensorless Algorithm-Based Solar Tracking System</div>
+        <div class="tagline">Higher yield · Lower maintenance · Reliable control</div>
+      </div>
+    </div>
 
-    <nav class="topnav">
-      <a href="#overview">Overview</a>
-      <a href="#climate">Climate</a>
-      <a href="#comparison">Comparison</a>
-      <a href="#sources">Sources</a>
-      <a href="#formulas">Formulas</a>
-      <a href="#physics">Physics</a>
-      <a href="#costs">Prices</a>
-    </nav>
+    <div class="chips">
+      <span class="chip">GitHub Pages Demo</span>
+      <span class="chip">Chart.js climate chart</span>
+      <span class="chip">MathJax formulas</span>
+      <span class="chip">PV comparison</span>
+    </div>
 
-    <div class="topActions">
-      <a class="linkBtn" href="#sources">Sources</a>
-      <a class="primaryBtn" href="#overview">Explore</a>
+    <div class="heroActions">
+      <a class="btn primary" href="#overview">Overview</a>
+      <a class="btn" href="#climate">Why it matters</a>
+      <a class="btn" href="#comparison">Comparison</a>
+      <a class="btn" href="#sources">Sources</a>
+      <a class="btn ghost" href="#formulas">Formulas</a>
+      <a class="btn ghost" href="#physics">Physics</a>
+      <a class="btn ghost" href="#costs">Prices</a>
     </div>
   </div>
 </header>
 
-<!-- Hero -->
-<section class="hero">
-  <div class="wrap heroGrid">
-    <div class="heroCopy">
-      <div class="eyebrow">Sensorless algorithm-based solar tracking • GitHub Pages demo</div>
-      <h1 class="heroTitle">
-        SUNFLOWER: higher yield with <span class="gradText">stable control</span>.
-      </h1>
-      <p class="heroLead">
-        A solar tracking concept that computes the Sun’s position using <b>location + date + time</b>
-        (instead of optical sensors) to reduce sensitivity to dust, clouds, and shading.
-      </p>
 
-      <div class="ctaRow">
-        <a class="primaryBtn big" href="#overview">Get started</a>
-        <a class="softBtn big" href="#formulas">View formulas</a>
-      </div>
+<main class="container">
 
-      <div class="chips">
-        <span class="chip">Chart.js climate chart</span>
-        <span class="chip">MathJax formulas</span>
-        <span class="chip">PV comparison + costs</span>
-      </div>
-    </div>
+  <!-- OVERVIEW -->
+  <section id="overview" class="card">
+    <h2>Overview</h2>
+    <p>
+      <b>SUNFLOWER</b> is a sensorless solar tracking concept: instead of optical sensors, it uses
+      <b>location + date + time</b> to compute the Sun’s position and control panel orientation.
+      The aim is to improve real-world reliability by reducing sensitivity to dust, clouds, and shading.
+    </p>
 
-    <div class="heroCard" aria-label="Key metrics preview">
-      <div class="heroCardTop">
-        <div class="heroCardTitle">Quick impact snapshot</div>
-        <div class="heroCardSub">Benchmark demo numbers (replace later with sources)</div>
-      </div>
-
-      <div class="statGrid">
-        <div class="stat">
-          <div class="statNum">+26%</div>
-          <div class="statLabel">Tracking gain example</div>
-        </div>
-        <div class="stat">
-          <div class="statNum">350</div>
-          <div class="statLabel">kWh/kWp·year (ΔE)</div>
-        </div>
-        <div class="stat">
-          <div class="statNum">↓</div>
-          <div class="statLabel">Less sensor maintenance</div>
-        </div>
-        <div class="stat">
-          <div class="statNum">7</div>
-          <div class="statLabel">Sections with tabs</div>
-        </div>
-      </div>
-
-      <div class="heroMiniNote">
-        Tip: Keep <b>temp.png</b> and <b>flood.jpg</b> in the repo (same folder as index.html).
-      </div>
-    </div>
-  </div>
-
-  <div class="heroWave" aria-hidden="true"></div>
-</section>
-
-<main>
-
-  <!-- Overview -->
-  <section id="overview" class="section">
-    <div class="wrap">
-      <div class="sectionHead">
-        <h2>Overview</h2>
-        <p>
-          <b>SUNFLOWER</b> is a sensorless solar tracking concept: instead of optical sensors, it uses
-          <b>location + date + time</b> to compute the Sun’s position and control panel orientation.
+    <div class="grid2">
+      <div class="mini">
+        <h3>Where the idea came from</h3>
+        <p class="small">
+          Conventional trackers often rely on photodetectors. In real conditions (dust, shading, clouds),
+          sensors may “lose” the Sun and trigger unnecessary searching movements, energy waste, and maintenance.
+          SUNFLOWER avoids this by using solar position mathematics (algorithm-based control).
         </p>
       </div>
 
-      <div class="cards2">
-        <article class="card">
-          <h3>Where the idea came from</h3>
-          <p class="muted">
-            Conventional trackers often rely on light sensors. In real conditions, sensors can lose the Sun,
-            triggering unnecessary movements, energy waste, and maintenance. SUNFLOWER avoids this by using
-            solar position mathematics (NOAA/SPA-style).
-          </p>
-        </article>
-
-        <article class="card">
-          <h3>Main advantages</h3>
-          <ul class="list">
-            <li>No optical sensors → less sensitivity to dust & shading</li>
-            <li>Fewer unnecessary movements → lower wear and energy use</li>
-            <li>Stable control logic from astronomy-based calculations</li>
-          </ul>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <!-- Climate -->
-  <section id="climate" class="section alt">
-    <div class="wrap">
-      <div class="sectionHead">
-        <h2>Why it matters: Climate Change</h2>
-        <p>
-          Global warming is one of the main challenges of the 21st century. The burning of fossil fuels
-          (coal, oil, gas) increases greenhouse gas emissions and contributes to rising global temperature.
-          Improving renewable energy efficiency helps reduce dependence on fossil fuels.
-        </p>
-      </div>
-
-      <div class="cards2">
-        <article class="card">
-          <h3>Global Temperature Rise (1850–2025)</h3>
-
-          <div class="media">
-            <img src="temp.png" alt="Global temperature anomaly graph (1850–2025)">
-            <div class="caption">Example figure: global temperature anomaly relative to the 1850–1900 baseline.</div>
-          </div>
-
-          <div class="chartBox">
-            <canvas id="temperatureChart" aria-label="Temperature chart"></canvas>
-            <div class="caption">Interactive chart (demo values now, will be replaced with real dataset later).</div>
-          </div>
-        </article>
-
-        <article class="card">
-          <h3>Consequences: Floods and Displacement</h3>
-
-          <div class="media">
-            <img src="flood.jpg" alt="Flooded area due to climate change">
-            <div class="caption">Example photo illustrating flooding/sea-level risks in coastal regions.</div>
-          </div>
-
-          <ul class="list">
-            <li>Extreme climate events have displaced about <b>21.5 million people annually</b>.</li>
-            <li>At-risk people in coastal regions increased from <b>160 million</b> to <b>260 million</b>.</li>
-            <li>Bangladesh could lose <b>17%</b> of land area by 2050, potentially displacing <b>20 million</b> people.</li>
-            <li>In Africa (Lake Victoria region), <b>16.6–38.5 million</b> migrants may move into the region by 2050.</li>
-          </ul>
-
-          <div class="callout">
-            Higher PV yield per installed capacity means less fossil-fuel electricity is needed for the same demand.
-            That’s why improving tracking reliability matters.
-          </div>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <!-- Comparison -->
-  <section id="comparison" class="section">
-    <div class="wrap">
-      <div class="sectionHead">
-        <h2>Comparison</h2>
-        <p class="muted">
-          Comparison between a fixed PV system, a conventional sensor-based tracker, and SUNFLOWER.
-          Replace benchmark numbers with your final sources (PVGIS/PVWatts and vendor quotes).
-        </p>
-      </div>
-
-      <div class="card">
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr>
-                <th>System</th>
-                <th>Pros</th>
-                <th>Cons</th>
-                <th>Annual Energy (kWh/kWp·year)</th>
-                <th>CAPEX (USD/kWp)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Fixed PV</td>
-                <td>Simple, cheap</td>
-                <td>Lower yield</td>
-                <td>1350</td>
-                <td>1200–1250</td>
-              </tr>
-              <tr>
-                <td>Sensor-based tracker</td>
-                <td>Higher yield</td>
-                <td>Sensitive to dust/shading, maintenance</td>
-                <td>1600</td>
-                <td>1400–1500</td>
-              </tr>
-              <tr>
-                <td><b>SUNFLOWER</b></td>
-                <td><b>Higher yield + stable control</b></td>
-                <td><b>Needs accurate time/location setup</b></td>
-                <td><b>1700</b></td>
-                <td><b>1350–1450</b></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="charts2">
-          <div class="miniCard">
-            <div class="miniTitle">Energy Output</div>
-            <div id="energyBars" class="bars"></div>
-          </div>
-
-          <div class="miniCard">
-            <div class="miniTitle">CAPEX Cost</div>
-            <div id="costBars" class="bars"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Sources -->
-  <section id="sources" class="section alt">
-    <div class="wrap">
-      <div class="sectionHead">
-        <h2>Sources</h2>
-        <p class="muted">Use only credible sources (official agencies/labs) for best judging.</p>
-      </div>
-
-      <div class="card">
-        <ul class="list">
-          <li>NASA / NOAA global temperature datasets (climate trend)</li>
-          <li>NOAA Solar Position / Solar calculations (math)</li>
-          <li>NREL PVWatts and/or PVGIS (energy yield benchmarks)</li>
-          <li>Berkeley Lab / IEA reports (cost benchmarks)</li>
-          <li>DigiKey/Mouser datasheets (hardware BOM)</li>
-          <li>Climate displacement statistics (add the exact report/article link you used)</li>
+      <div class="mini">
+        <h3>Main advantages</h3>
+        <ul>
+          <li>No optical sensors → less sensitivity to dust & shading</li>
+          <li>Fewer unnecessary movements → lower wear and energy use</li>
+          <li>Stable control logic from astronomy-based calculations</li>
         </ul>
       </div>
     </div>
   </section>
 
-  <!-- Formulas -->
-  <section id="formulas" class="section">
-    <div class="wrap">
-      <div class="sectionHead">
-        <h2>Formulas (Solar Position Math)</h2>
-        <p class="muted">Key equations used to compute solar elevation and azimuth (NOAA/SPA-style).</p>
-      </div>
 
-      <div class="card prose">
-        <h3>Fractional year</h3>
-        \[
-          \gamma_f = \frac{2\pi}{365}\left(d - 1 + \frac{x - 12}{24}\right)
-        \]
+  <!-- CLIMATE / WHY IT MATTERS -->
+  <section id="climate" class="card">
+    <h2>Why it matters (Climate & Energy)</h2>
+    <p>
+      Global temperature is rising, largely due to greenhouse gas emissions from fossil fuel combustion
+      (coal, oil, gas). Increasing renewable energy efficiency is one way to reduce emissions.
+    </p>
 
-        <h3>Equation of Time</h3>
-        \[
-          E_t = 229.18\left(
-          0.000075 + 0.001868\cos\gamma_f - 0.032077\sin\gamma_f
-          - 0.014615\cos(2\gamma_f) - 0.040849\sin(2\gamma_f)
-          \right)
-        \]
-
-        <h3>Solar declination</h3>
-        \[
-          \delta =
-          0.006918
-          - 0.399912\cos\gamma_f
-          + 0.070257\sin\gamma_f
-          - 0.006758\cos(2\gamma_f)
-          + 0.000907\sin(2\gamma_f)
-          - 0.002697\cos(3\gamma_f)
-          + 0.00148\sin(3\gamma_f)
-        \]
-
-        <h3>Solar elevation</h3>
-        \[
-          \sin(\alpha) = \sin(\varphi)\sin(\delta) + \cos(\varphi)\cos(\delta)\cos(H)
-        \]
-
-        <h3>Solar azimuth</h3>
-        \[
-          \gamma = \operatorname{atan2}\left(\sin(H),\, \cos(H)\sin(\varphi)-\tan(\delta)\cos(\varphi)\right)
-        \]
-      </div>
-    </div>
-  </section>
-
-  <!-- Physics -->
-  <section id="physics" class="section alt">
-    <div class="wrap">
-      <div class="sectionHead">
-        <h2>Physics & Energy</h2>
-      </div>
-
-      <div class="card prose">
-        <h3>Annual energy estimate</h3>
-        \[
-          E = H \cdot PR
-        \]
-        <p class="muted">
-          where \(E\) is annual energy (kWh/kWp·year), \(H\) is annual irradiation on the plane of array,
-          and \(PR\) is performance ratio (typical 0.75–0.85).
+    <div class="grid2">
+      <div class="mini">
+        <h3>Temperature trend (example)</h3>
+        <p class="small">
+          Below is a demo climate chart. In the next step, we can replace demo values with NASA/NOAA dataset values.
         </p>
 
-        <h3>Tracking gain</h3>
-        \[
-          E_{\text{tracker}} = E_{\text{fixed}}(1+g)
-        \]
+        <div class="chartBox">
+          <canvas id="tempChartCanvas" height="140"></canvas>
+        </div>
 
-        <h3>Example gain</h3>
-        \[
-          \Delta E = 1700 - 1350 = 350\ \text{kWh/kWp·year}
-        \]
-        \[
-          g = \frac{350}{1350} \approx 0.26 = 26\%
-        \]
+        <p class="small">
+          Suggested sources for final data: NASA GISTEMP / NOAA global temperature anomaly datasets.
+        </p>
+      </div>
+
+      <div class="mini">
+        <h3>Why tracking helps</h3>
+        <p class="small">
+          Tracking increases solar energy yield per installed capacity. More yield → less fossil fuel needed
+          for the same energy demand.
+        </p>
+
+        <div class="kpis">
+          <div class="kpi">
+            <div class="kpiNum">+20–30%</div>
+            <div class="kpiLabel">Typical tracking gain</div>
+          </div>
+          <div class="kpi">
+            <div class="kpiNum">↓</div>
+            <div class="kpiLabel">Maintenance with sensorless control</div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Prices -->
-  <section id="costs" class="section">
-    <div class="wrap">
-      <div class="sectionHead">
-        <h2>Prices & BOM</h2>
+
+  <!-- COMPARISON -->
+  <section id="comparison" class="card">
+    <h2>Comparison</h2>
+    <p class="small">
+      Comparison between a fixed PV system, a conventional sensor-based tracker, and SUNFLOWER.
+      (Replace numbers with your final sources later.)
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>System</th>
+          <th>Pros</th>
+          <th>Cons</th>
+          <th>Annual Energy (kWh/kWp·year)</th>
+          <th>CAPEX (USD/kWp)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Fixed PV</td>
+          <td>Simple, cheap</td>
+          <td>Lower yield</td>
+          <td>1350</td>
+          <td>1200–1250</td>
+        </tr>
+        <tr>
+          <td>Sensor-based tracker</td>
+          <td>Higher yield</td>
+          <td>Sensitive to dust/shading, maintenance</td>
+          <td>1600</td>
+          <td>1400–1500</td>
+        </tr>
+        <tr>
+          <td><b>SUNFLOWER</b></td>
+          <td><b>Higher yield + stable control</b></td>
+          <td><b>Needs accurate time/location setup</b></td>
+          <td><b>1700</b></td>
+          <td><b>1350–1450</b></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="charts">
+      <div class="chart">
+        <h3>Energy Output (Bar Chart)</h3>
+        <div id="energyBars" class="bars"></div>
       </div>
 
-      <div class="card">
-        <h3>SUNFLOWER Controller BOM (example)</h3>
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Component</th>
-                <th>Qty</th>
-                <th>Typical Price (USD)</th>
-                <th>Reference</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>ESP32 Microcontroller</td>
-                <td>1</td>
-                <td>10–12</td>
-                <td class="muted">Add store link + datasheet</td>
-              </tr>
-              <tr>
-                <td>RTC Module (DS3231)</td>
-                <td>1</td>
-                <td>10–25</td>
-                <td class="muted">Add store link + datasheet</td>
-              </tr>
-              <tr>
-                <td>Motor Driver</td>
-                <td>1</td>
-                <td>8–20</td>
-                <td class="muted">Add store link + datasheet</td>
-              </tr>
-              <tr>
-                <td>Wiring + Enclosure</td>
-                <td>1</td>
-                <td>5–15</td>
-                <td class="muted">Add store link</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="callout">
-          Judges trust this more when every component has a price-proof link and a datasheet.
-        </div>
+      <div class="chart">
+        <h3>CAPEX Cost (Bar Chart)</h3>
+        <div id="costBars" class="bars"></div>
       </div>
     </div>
+  </section>
+
+
+  <!-- SOURCES -->
+  <section id="sources" class="card">
+    <h2>Sources</h2>
+    <ul>
+      <li>NASA / NOAA global temperature datasets (climate trend)</li>
+      <li>NOAA Solar Position / Solar calculations (math)</li>
+      <li>NREL PVWatts and/or PVGIS (energy yield benchmarks)</li>
+      <li>Berkeley Lab / IEA reports (cost benchmarks)</li>
+      <li>DigiKey/Mouser datasheets (hardware BOM)</li>
+    </ul>
+    <p class="small">Use only credible sources (official agencies/labs) for best judging.</p>
+  </section>
+
+
+  <!-- FORMULAS (11 BUTTONS) -->
+  <section id="formulas" class="card">
+    <h2>Formulas (Exact Sun Position)</h2>
+    <p class="small">
+      Click a symbol to open: <b>definition</b>, <b>derivation/proof</b>, and the <b>final equation</b>.
+      (We will fill the content from your document in <code>site.js</code>.)
+    </p>
+
+    <div class="formulaGrid11">
+
+      <!-- Row 1 (4) -->
+      <button class="formulaTile" data-formula="gamma" type="button">
+        <div class="tileSymbol">γ</div>
+        <div class="tileLabel">Fractional year</div>
+      </button>
+
+      <button class="formulaTile" data-formula="et" type="button">
+        <div class="tileSymbol">ET</div>
+        <div class="tileLabel">Equation of Time</div>
+      </button>
+
+      <button class="formulaTile" data-formula="delta" type="button">
+        <div class="tileSymbol">δ</div>
+        <div class="tileLabel">Solar declination</div>
+      </button>
+
+      <button class="formulaTile" data-formula="tf" type="button">
+        <div class="tileSymbol">t<sub>f</sub></div>
+        <div class="tileLabel">Time correction</div>
+      </button>
+
+      <!-- Row 2 (4) -->
+      <button class="formulaTile" data-formula="tst" type="button">
+        <div class="tileSymbol">t<sub>st</sub></div>
+        <div class="tileLabel">True Solar Time</div>
+      </button>
+
+      <button class="formulaTile" data-formula="ha" type="button">
+        <div class="tileSymbol">h<sub>a</sub></div>
+        <div class="tileLabel">Hour angle</div>
+      </button>
+
+      <button class="formulaTile" data-formula="phi" type="button">
+        <div class="tileSymbol">φ</div>
+        <div class="tileLabel">Zenith angle</div>
+      </button>
+
+      <button class="formulaTile" data-formula="theta" type="button">
+        <div class="tileSymbol">θ</div>
+        <div class="tileLabel">Azimuth</div>
+      </button>
+
+      <!-- Row 3 (3) -->
+      <button class="formulaTile" data-formula="sr" type="button">
+        <div class="tileSymbol">S<sub>r,t</sub></div>
+        <div class="tileLabel">Sunrise & Sunset</div>
+      </button>
+
+      <button class="formulaTile" data-formula="snoon" type="button">
+        <div class="tileSymbol">S<sub>noon</sub></div>
+        <div class="tileLabel">Solar noon</div>
+      </button>
+
+      <button class="formulaTile" data-formula="dalpha" type="button">
+        <div class="tileSymbol">Δα</div>
+        <div class="tileLabel">Angular error</div>
+      </button>
+
+    </div>
+
+    <!-- Info panel (opens after click) -->
+    <div id="formulaPanel" class="formulaPanel hidden">
+      <div class="panelHead">
+        <h3 id="panelTitle">—</h3>
+        <button class="panelClose" id="panelClose" type="button" aria-label="Close">✕</button>
+      </div>
+
+      <div id="panelBody" class="panelBody">
+        <!-- Filled by site.js -->
+      </div>
+    </div>
+
+    <p class="small note">
+      Next step: you send the current <code>site.js</code> (you already did), and I will update it to load
+      full definitions + proofs + formulas for these 11 buttons.
+    </p>
+  </section>
+
+
+  <!-- PHYSICS -->
+  <section id="physics" class="card">
+    <h2>Physics & Energy</h2>
+
+    <h3>Annual energy estimate</h3>
+    \[
+      E = H \cdot PR
+    \]
+
+    <h3>Tracking gain</h3>
+    \[
+      E_{\text{tracker}} = E_{\text{fixed}}(1+g)
+    \]
+
+    <h3>Example gain</h3>
+    \[
+      \Delta E = 1700 - 1350 = 350\ \text{kWh/kWp·year}
+    \]
+    \[
+      g = \frac{350}{1350} \approx 0.26 = 26\%
+    \]
+  </section>
+
+
+  <!-- COSTS -->
+  <section id="costs" class="card">
+    <h2>Prices & BOM</h2>
+
+    <h3>SUNFLOWER Controller BOM (example)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Qty</th>
+          <th>Typical Price (USD)</th>
+          <th>Reference</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>ESP32 Microcontroller</td>
+          <td>1</td>
+          <td>10–12</td>
+          <td class="small">Add store link + datasheet</td>
+        </tr>
+        <tr>
+          <td>RTC Module (DS3231)</td>
+          <td>1</td>
+          <td>10–25</td>
+          <td class="small">Add store link + datasheet</td>
+        </tr>
+        <tr>
+          <td>Motor Driver</td>
+          <td>1</td>
+          <td>8–20</td>
+          <td class="small">Add store link + datasheet</td>
+        </tr>
+        <tr>
+          <td>Wiring + Enclosure</td>
+          <td>1</td>
+          <td>5–15</td>
+          <td class="small">Add store link</td>
+        </tr>
+      </tbody>
+    </table>
   </section>
 
 </main>
 
-<footer class="footer">
-  <div class="wrap footerInner">
-    <div class="footerLeft">
-      <div class="footBrand">
-        <span class="brandMark sm">SF</span>
-        <span class="brandName">SUNFLOWER</span>
-      </div>
-      <div class="muted">© SUNFLOWER — GitHub Pages Website</div>
-    </div>
 
-    <div class="footerRight">
-      <a class="footLink" href="#top">Back to top</a>
-      <a class="footLink" href="#sources">Sources</a>
-    </div>
+<footer>
+  <div class="container">
+    <div class="small">© SUNFLOWER — GitHub Pages Website</div>
   </div>
 </footer>
 
