@@ -1,683 +1,706 @@
-/* =========================================================
-   SUNFLOWER — site.js (DEMO canvas version)
-   Works with your HTML:
-     section#demo, canvas#trackerDemo
-     controls: #weatherSelect, #speedRange, #togglePlay, #resetDemo
-
+/* site.js — SUNFLOWER (stable on mobile + desktop)
    Includes:
-   - Bar charts (energy + cost)
-   - Climate chart (Chart.js demo)
-   - Formula tiles -> panel (11 buttons)
-   - Tracking demo animation (single canvas) optimized for mobile
-   ========================================================= */
+   - Climate chart (Chart.js) if #tempChartCanvas exists
+   - Comparison bars if #energyBars / #costBars exist
+   - Formula panel if #formulaPanel and .formulaTile exist
+   - Tracking demo canvas (3-system comparison) if #trackerDemo exists
+   - Web calculator (Sun position) if calculator IDs exist
+*/
+(() => {
+  "use strict";
 
-/* ------------------ PERF / ENV ------------------ */
-const PERF = (() => {
-  const prefersReducedMotion =
-    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+  // ---------- helpers ----------
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const isMobile = () => matchMedia("(max-width: 768px)").matches;
+  const prefersReduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-  const isSmall = window.matchMedia?.("(max-width: 900px)")?.matches ?? false;
-  const isMobile = isTouch || isSmall;
-
-  // Keep animation ON everywhere, but lighter on mobile
-  const targetFPS = isMobile ? 30 : 60;
-  const dprCap = isMobile ? 1.5 : 2;
-  const mathjaxDebounceMs = isMobile ? 200 : 90;
-
-  return { prefersReducedMotion, isMobile, targetFPS, dprCap, mathjaxDebounceMs };
-})();
-
-/* ------------------ HELPERS ------------------ */
-function $(sel, root = document) { return root.querySelector(sel); }
-function $all(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
-function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
-function lerp(a, b, t) { return a + (b - a) * t; }
-
-function escapeHTML(str) {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function throttle(fn, wait = 180) {
-  let last = 0, t = null, lastArgs = null;
-  return (...args) => {
-    const now = Date.now();
-    lastArgs = args;
-    if (now - last >= wait) {
-      last = now;
-      fn(...args);
-      return;
-    }
-    clearTimeout(t);
-    t = setTimeout(() => {
-      last = Date.now();
-      fn(...lastArgs);
-    }, wait);
-  };
-}
-
-function debounce(fn, wait = 120) {
-  let t = null;
-  return (...args) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), wait);
-  };
-}
-
-/* ------------------ MathJax typeset (throttled) ------------------ */
-const typesetMath = debounce(() => {
-  if (!window.MathJax || !window.MathJax.typesetPromise) return;
-  const panel = $("#formulaPanel");
-  if (!panel) return;
-  window.MathJax.typesetPromise([panel]).catch(() => {});
-}, PERF.mathjaxDebounceMs);
-
-/* ------------------ SIMPLE BAR CHART ------------------ */
-function renderBars(containerId, items, maxValue) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-
-  container.innerHTML = "";
-  const frag = document.createDocumentFragment();
-
-  items.forEach(item => {
-    const row = document.createElement("div");
-    row.className = "barRow";
-
-    const label = document.createElement("div");
-    label.className = "barLabel";
-    label.textContent = item.label;
-
-    const track = document.createElement("div");
-    track.className = "barTrack";
-
-    const fill = document.createElement("div");
-    fill.className = "barFill";
-    const percent = clamp(item.value / maxValue, 0, 1);
-    fill.style.width = (percent * 100).toFixed(1) + "%";
-    track.appendChild(fill);
-
-    const value = document.createElement("div");
-    value.className = "barValue";
-    value.textContent = item.valueText || String(item.value);
-
-    row.appendChild(label);
-    row.appendChild(track);
-    row.appendChild(value);
-    frag.appendChild(row);
-  });
-
-  container.appendChild(frag);
-}
-
-/* ------------------ DATA ------------------ */
-const energyData = [
-  { label: "Fixed system", value: 1350, valueText: "1350" },
-  { label: "Conventional tracker", value: 1600, valueText: "1600" },
-  { label: "SUNFLOWER", value: 1700, valueText: "1700" }
-];
-
-const costData = [
-  { label: "Fixed system", value: 1225, valueText: "1200–1250" },
-  { label: "Sensor-based tracker", value: 1450, valueText: "1400–1500" },
-  { label: "SUNFLOWER", value: 1400, valueText: "1350–1450" }
-];
-
-/* ------------------ CLIMATE CHART (Chart.js demo) ------------------ */
-function initClimateChart() {
-  const canvas = document.getElementById("tempChartCanvas");
-  if (!canvas) return;
-  if (!window.Chart) return;
-
-  const labels = ["2016","2017","2018","2019","2020","2021","2022","2023","2024"];
-  const values = [0.87,0.90,0.82,0.95,1.02,0.85,0.89,1.00,1.05];
-
-  if (canvas.__chart) {
-    canvas.__chart.destroy();
-    canvas.__chart = null;
+  function safeText(s) {
+    return String(s ?? "");
   }
 
-  canvas.__chart = new Chart(canvas, {
-    type: "line",
-    data: {
-      labels,
-      datasets: [{
-        label: "Global temperature anomaly (demo, °C)",
-        data: values,
-        borderWidth: 2,
-        pointRadius: PERF.isMobile ? 2 : 3,
-        tension: 0.25
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: PERF.prefersReducedMotion ? false : { duration: PERF.isMobile ? 250 : 650 },
-      plugins: { legend: { display: true } },
-      scales: {
-        y: { title: { display: true, text: "°C" } },
-        x: { title: { display: true, text: "Year" } }
+  // Use lower DPR on mobile to avoid lag
+  function getSafeDPR() {
+    const dpr = window.devicePixelRatio || 1;
+    if (isMobile()) return Math.min(dpr, 1.5);
+    return Math.min(dpr, 2);
+  }
+
+  function setupHiDPICanvas(canvas) {
+    const dpr = getSafeDPR();
+    const cssW = canvas.clientWidth || canvas.width || 600;
+    const cssH = canvas.clientHeight || canvas.height || 320;
+
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+
+    const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w: cssW, h: cssH, dpr };
+  }
+
+  // Pause animation when offscreen
+  function observeVisibility(el, onChange) {
+    if (!("IntersectionObserver" in window)) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) onChange(!!e.isIntersecting);
+      },
+      { threshold: 0.08 }
+    );
+    io.observe(el);
+  }
+
+  // ---------- 1) Climate chart (Chart.js) ----------
+  function initClimateChart() {
+    const canvas = $("#tempChartCanvas");
+    if (!canvas || !window.Chart) return;
+
+    // demo data (lightweight)
+    const years = [];
+    const vals = [];
+    for (let y = 2000; y <= 2025; y++) {
+      years.push(String(y));
+      // gentle upward demo trend
+      vals.push((0.25 + (y - 2000) * 0.02 + (Math.sin((y - 2000) * 0.7) * 0.03)).toFixed(2));
+    }
+
+    const ctx = canvas.getContext("2d");
+    // Destroy old chart if hot-reload
+    if (canvas.__chart) {
+      try { canvas.__chart.destroy(); } catch {}
+    }
+
+    canvas.__chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: years,
+        datasets: [{
+          label: "Global temperature anomaly (demo)",
+          data: vals,
+          tension: 0.25,
+          pointRadius: 0,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false, // important for mobile
+        plugins: { legend: { display: true } },
+        scales: {
+          x: { ticks: { maxTicksLimit: 7 } },
+          y: { title: { display: true, text: "°C" } }
+        }
       }
+    });
+  }
+
+  // ---------- 2) Comparison bars ----------
+  function initBars() {
+    const energyEl = $("#energyBars");
+    const costEl = $("#costBars");
+    if (!energyEl && !costEl) return;
+
+    function renderBars(el, items) {
+      if (!el) return;
+      el.innerHTML = "";
+      const max = Math.max(...items.map(i => i.v));
+      items.forEach((i) => {
+        const row = document.createElement("div");
+        row.className = "barRow";
+        const label = document.createElement("div");
+        label.className = "barLabel";
+        label.textContent = i.name;
+        const track = document.createElement("div");
+        track.className = "barTrack";
+        const bar = document.createElement("div");
+        bar.className = "barFill";
+        bar.style.width = `${(i.v / max) * 100}%`;
+        const val = document.createElement("div");
+        val.className = "barVal";
+        val.textContent = i.txt;
+        track.appendChild(bar);
+        row.appendChild(label);
+        row.appendChild(track);
+        row.appendChild(val);
+        el.appendChild(row);
+      });
     }
-  });
-}
 
-/* ------------------ FORMULAS (11 tiles) ------------------ */
-const FORMULAS = {
-  gamma: { title:"γ — Fractional year (radians)",
-    definition:"A compact variable for the position within the year used in NOAA solar approximations.",
-    derivation:"Turns seasonal variation into sine/cosine terms.",
-    equation: String.raw`\[
-\gamma=\frac{2\pi}{365}\left(N-1+\frac{h-12}{24}\right)
-\]
-\[
-N=\text{day of year},\quad h=\text{local clock hour}
-\]` },
-  et: { title:"ET — Equation of Time (minutes)",
-    definition:"Difference between apparent solar time and mean clock time.",
-    derivation:"NOAA approximation as periodic terms in γ.",
-    equation: String.raw`\[
-ET=229.18\Big(
-0.000075+0.001868\cos\gamma-0.032077\sin\gamma
--0.014615\cos 2\gamma-0.040849\sin 2\gamma
-\Big)
-\]` },
-  delta: { title:"δ — Solar declination (radians)",
-    definition:"Angle between the Sun’s rays and Earth’s equatorial plane.",
-    derivation:"NOAA approximation in γ.",
-    equation: String.raw`\[
-\delta=
-0.006918-0.399912\cos\gamma+0.070257\sin\gamma
--0.006758\cos 2\gamma+0.000907\sin 2\gamma
--0.002697\cos 3\gamma+0.00148\sin 3\gamma
-\]` },
-  tf: { title:"t₍f₎ — Time correction (minutes)",
-    definition:"Clock-to-solar time correction using ET, longitude and time zone.",
-    derivation:"4 minutes per degree longitude; 60 minutes per hour time zone shift.",
-    equation: String.raw`\[
-t_f = ET + 4\lambda - 60\,TZ
-\]
-\[
-\lambda=\text{longitude (deg)},\quad TZ=\text{UTC offset (hours)}
-\]` },
-  tst: { title:"tₛₜ — True Solar Time (minutes)",
-    definition:"Solar time in minutes from midnight.",
-    derivation:"Clock minutes + time correction.",
-    equation: String.raw`\[
-t_{st} = 60h + m + \frac{s}{60} + t_f
-\]` },
-  ha: { title:"hₐ — Hour angle (degrees)",
-    definition:"Angle relative to solar noon (0° at solar noon).",
-    derivation:"1° per 4 minutes.",
-    equation: String.raw`\[
-h_a = \frac{t_{st}}{4}-180
-\]` },
-  phi: { title:"φ — Zenith angle (degrees)",
-    definition:"Angle from vertical to the Sun (0° at the zenith).",
-    derivation:"From spherical astronomy.",
-    equation: String.raw`\[
-\cos\phi = \sin\varphi\sin\delta+\cos\varphi\cos\delta\cos h_a
-\]
-\[
-\phi=\arccos(\cos\phi),\quad \alpha = 90^\circ-\phi
-\]`,
-    notes:"α is the solar elevation angle." },
-  theta: { title:"θ — Solar azimuth (degrees)",
-    definition:"Compass direction of the Sun on the horizontal plane.",
-    derivation:"Use atan2 for the correct quadrant.",
-    equation: String.raw`\[
-\theta = \operatorname{atan2}(y,x),\quad
-\text{if }\theta<0,\ \theta\leftarrow\theta+360^\circ
-\]` },
-  sr: { title:"Sᵣ,ₜ — Sunrise & sunset (minutes)",
-    definition:"Approximate sunrise/sunset times using horizon hour angle.",
-    derivation:"Solve hour angle near the horizon (simplified).",
-    equation: String.raw`\[
-t_{sunrise}=720-4(\lambda+h_{sr})-ET,\quad
-t_{sunset}=720-4(\lambda-h_{sr})-ET
-\]` },
-  snoon: { title:"Sₙₒₒₙ — Solar noon (minutes)",
-    definition:"Time of the Sun’s highest point.",
-    derivation:"Hour angle equals 0° at solar noon.",
-    equation: String.raw`\[
-t_{noon} = 720 - 4\lambda - ET
-\]` },
-  dalpha: { title:"Δα — Angular error between Sun and panel",
-    definition:"Angular distance between Sun direction and panel normal direction.",
-    derivation:"Dot product of two directions on the celestial sphere.",
-    equation: String.raw`\[
-\Delta \alpha =
-\arccos\Big(
-\sin(h_1)\sin(h_2)+\cos(h_1)\cos(h_2)\cos(A_1-A_2)
-\Big)
-\]` }
-};
+    renderBars(energyEl, [
+      { name: "Fixed PV", v: 1350, txt: "1350" },
+      { name: "Sensor tracker", v: 1600, txt: "1600" },
+      { name: "SUNFLOWER", v: 1700, txt: "1700" }
+    ]);
 
-function buildFormulaHTML(key) {
-  const f = FORMULAS[key];
-  if (!f) return { title:"Not found", html:`<p class="small">No content.</p>` };
-
-  return {
-    title: f.title,
-    html: `
-      <div class="panelSection">
-        <h4>Definition</h4>
-        <p>${escapeHTML(f.definition)}</p>
-      </div>
-      <div class="panelSection">
-        <h4>Derivation / Why this form</h4>
-        <p>${escapeHTML(f.derivation)}</p>
-      </div>
-      <div class="panelSection">
-        <h4>Equation</h4>
-        <div class="mathBlock">${f.equation}</div>
-      </div>
-      ${f.notes ? `
-        <div class="panelSection">
-          <h4>Notes</h4>
-          <p>${escapeHTML(f.notes)}</p>
-        </div>` : ""}
-    `
-  };
-}
-
-function initFormulaPanel() {
-  const panel = $("#formulaPanel");
-  const panelTitle = $("#panelTitle");
-  const panelBody = $("#panelBody");
-  const closeBtn = $("#panelClose");
-  const tiles = $all(".formulaTile");
-
-  if (!panel || !panelTitle || !panelBody || tiles.length === 0) return;
-
-  const open = (key) => {
-    const content = buildFormulaHTML(key);
-    panelTitle.textContent = content.title;
-    panelBody.innerHTML = content.html;
-    panel.classList.remove("hidden");
-    typesetMath();
-  };
-
-  const close = () => {
-    panel.classList.add("hidden");
-    panelTitle.textContent = "—";
-    panelBody.innerHTML = "";
-  };
-
-  tiles.forEach(btn => btn.addEventListener("click", () => open(btn.dataset.formula), { passive: true }));
-  closeBtn?.addEventListener("click", close, { passive: true });
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !panel.classList.contains("hidden")) close();
-  });
-}
-
-/* =========================================================
-   DEMO ANIMATION (single canvas: #trackerDemo)
-   Section id: #demo
-   ========================================================= */
-function initDemoAnimation() {
-  const section = document.getElementById("demo");
-  const canvas = document.getElementById("trackerDemo");
-  if (!section || !canvas) return;
-
-  const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
-
-  // Controls (optional but your HTML has them)
-  const weatherSelect = document.getElementById("weatherSelect");
-  const speedRange = document.getElementById("speedRange");
-  const speedVal = document.getElementById("speedVal");
-  const togglePlay = document.getElementById("togglePlay");
-  const resetBtn = document.getElementById("resetDemo");
-
-  let weatherMode = weatherSelect?.value || "sunny";
-  let secondsPerDay = Number(speedRange?.value || 12); // "12s/day" default
-  if (speedVal) speedVal.textContent = String(secondsPerDay);
-
-  let playing = true;
-
-  // Visibility pause (big perf win on mobile)
-  let visible = true;
-  const io = new IntersectionObserver(([entry]) => {
-    visible = entry.isIntersecting;
-  }, { threshold: 0.18 });
-  io.observe(section);
-
-  // Canvas sizing
-  let W = 0, H = 0, DPR = 1;
-
-  function resize() {
-    const rect = canvas.getBoundingClientRect();
-    DPR = clamp(window.devicePixelRatio || 1, 1, PERF.dprCap);
-    W = Math.max(320, Math.floor(rect.width));
-    H = Math.max(240, Math.floor(rect.height || 320));
-
-    canvas.width = Math.floor(W * DPR);
-    canvas.height = Math.floor(H * DPR);
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  }
-  resize();
-  window.addEventListener("resize", throttle(resize, 220), { passive: true });
-
-  // Demo state
-  let t = 0; // seconds in simulation loop
-
-  // Drawing utils
-  function roundRect(x, y, w, h, r) {
-    const rr = Math.min(r, w / 2, h / 2);
-    ctx.beginPath();
-    ctx.moveTo(x + rr, y);
-    ctx.arcTo(x + w, y, x + w, y + h, rr);
-    ctx.arcTo(x + w, y + h, x, y + h, rr);
-    ctx.arcTo(x, y + h, x, y, rr);
-    ctx.arcTo(x, y, x + w, y, rr);
-    ctx.closePath();
+    renderBars(costEl, [
+      { name: "Fixed PV", v: 1250, txt: "1200–1250" },
+      { name: "Sensor tracker", v: 1500, txt: "1400–1500" },
+      { name: "SUNFLOWER", v: 1450, txt: "1350–1450" }
+    ]);
   }
 
-  function drawBackground(cloudiness) {
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, "rgba(8, 18, 35, 0.98)");
-    g.addColorStop(1, "rgba(10, 28, 58, 0.98)");
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
+  // ---------- 3) Formulas panel (content can be expanded later) ----------
+  function initFormulaPanel() {
+    const panel = $("#formulaPanel");
+    const title = $("#panelTitle");
+    const body = $("#panelBody");
+    const closeBtn = $("#panelClose");
+    const tiles = $$(".formulaTile");
 
-    // clouds
-    if (cloudiness > 0.02) {
-      ctx.fillStyle = `rgba(190,210,240, ${0.10 + 0.28 * cloudiness})`;
-      const blobs = PERF.isMobile ? 2 : 3;
-      for (let i = 0; i < blobs; i++) {
-        const cx = W * (0.25 + i * 0.3) + Math.sin(t * 0.7 + i) * 10;
-        const cy = H * (0.22 + (i % 2) * 0.12);
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, W * 0.20, H * 0.09, 0, 0, Math.PI * 2);
-        ctx.fill();
+    if (!panel || !title || !body || tiles.length === 0) return;
+
+    const CONTENT = {
+      gamma: {
+        t: "γ — Fractional year",
+        d: "Definition: a normalized angle used to approximate yearly solar changes.",
+        p: "Idea: map day-of-year and time into a single phase angle.",
+        f: "\\[\\gamma = \\frac{2\\pi}{365}\\left(n - 1 + \\frac{h-12}{24}\\right)\\]"
+      },
+      et: {
+        t: "ET — Equation of Time",
+        d: "Definition: difference between solar time and clock time due to Earth’s orbit and tilt.",
+        p: "Derived from a harmonic approximation using γ.",
+        f: "\\[ET\\,(min)=229.18\\,(0.000075+0.001868\\cos\\gamma-0.032077\\sin\\gamma-0.014615\\cos2\\gamma-0.040849\\sin2\\gamma)\\]"
+      },
+      delta: {
+        t: "δ — Solar declination",
+        d: "Definition: angle between solar rays and Earth’s equatorial plane.",
+        p: "Approximated as a Fourier series in γ.",
+        f: "\\[\\delta=0.006918-0.399912\\cos\\gamma+0.070257\\sin\\gamma-0.006758\\cos2\\gamma+0.000907\\sin2\\gamma-0.002697\\cos3\\gamma+0.00148\\sin3\\gamma\\]"
+      },
+      tf: {
+        t: "t_f — Time correction",
+        d: "Definition: correction (minutes) applied to convert local clock time to true solar time.",
+        p: "Combines equation of time, longitude, and time zone.",
+        f: "\\[t_f = ET + 4\\,\\lambda - 60\\,TZ\\]"
+      },
+      tst: {
+        t: "t_st — True Solar Time",
+        d: "Definition: solar time in minutes from local solar midnight.",
+        p: "Clock minutes + time correction.",
+        f: "\\[t_{st} = 60h + m + s/60 + t_f\\]"
+      },
+      ha: {
+        t: "h_a — Hour angle",
+        d: "Definition: angular measure of time relative to solar noon.",
+        p: "Each 4 minutes corresponds to 1°.",
+        f: "\\[h_a = \\frac{t_{st}}{4} - 180^\\circ\\]"
+      },
+      phi: {
+        t: "φ — Zenith angle",
+        d: "Definition: angle between vertical and the Sun direction.",
+        p: "From spherical trigonometry of the local sky dome.",
+        f: "\\[\\cos\\varphi=\\sin\\phi_{lat}\\sin\\delta+\\cos\\phi_{lat}\\cos\\delta\\cos h_a\\]"
+      },
+      theta: {
+        t: "θ — Azimuth",
+        d: "Definition: compass direction of the Sun projection on the horizon.",
+        p: "Computed from hour angle, latitude, and declination.",
+        f: "\\[\\theta = \\operatorname{atan2}(\\sin\\theta_s,\\cos\\theta_s)\\quad\\text{(normalized to }0..360^\\circ\\text{)}\\]"
+      },
+      sr: {
+        t: "S_r,t — Sunrise & Sunset",
+        d: "Definition: times when the Sun crosses the horizon.",
+        p: "Solve for hour angle at a chosen zenith (≈ 90.833° for refraction).",
+        f: "\\[\\cos h_{sr}=\\frac{\\cos Z - \\sin\\phi_{lat}\\sin\\delta}{\\cos\\phi_{lat}\\cos\\delta}\\]"
+      },
+      snoon: {
+        t: "S_noon — Solar noon",
+        d: "Definition: time when Sun is highest (hour angle = 0).",
+        p: "From longitude and equation of time.",
+        f: "\\[S_{noon}(min)=720-4\\lambda-ET\\]"
+      },
+      dalpha: {
+        t: "Δα — Angular error",
+        d: "Definition: angular distance between Sun direction and panel normal.",
+        p: "Spherical trigonometry between two sky directions.",
+        f: "\\[\\Delta\\alpha=\\arccos\\left(\\sin h_1\\sin h_2+\\cos h_1\\cos h_2\\cos(A_1-A_2)\\right)\\]"
       }
+    };
+
+    function openFormula(key) {
+      const c = CONTENT[key];
+      if (!c) return;
+      title.textContent = c.t;
+      body.innerHTML = `
+        <div class="panelSection"><h4>Definition</h4><p>${safeText(c.d)}</p></div>
+        <div class="panelSection"><h4>Derivation / Idea</h4><p>${safeText(c.p)}</p></div>
+        <div class="panelSection"><h4>Final equation</h4>${c.f}</div>
+      `;
+      panel.classList.remove("hidden");
+      if (window.MathJax?.typesetPromise) window.MathJax.typesetPromise([body]).catch(() => {});
     }
 
-    // ground
-    ctx.fillStyle = "rgba(6, 10, 16, 0.92)";
-    ctx.fillRect(0, H * 0.78, W, H * 0.22);
+    function close() {
+      panel.classList.add("hidden");
+    }
+
+    tiles.forEach((btn) => {
+      btn.addEventListener("click", () => openFormula(btn.dataset.formula));
+    });
+    closeBtn?.addEventListener("click", close);
+    panel.addEventListener("click", (e) => {
+      if (e.target === panel) close();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") close();
+    });
   }
 
-  function sunPos(day01) {
-    // arc across sky (visual)
-    const start = Math.PI * 1.05;
-    const end = Math.PI * 1.95;
-    const a = start + (end - start) * day01;
+  // ---------- 4) Tracking demo (optimized) ----------
+  function initTrackingDemo() {
+    const canvas = $("#trackerDemo");
+    if (!canvas) return;
 
-    const cx = W * 0.50;
-    const cy = H * 0.90;
-    const r = Math.min(W, H) * 0.72;
+    // Respect reduced motion: show static frame
+    const reduced = prefersReduced();
 
-    return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, a };
-  }
+    let { ctx, w, h } = setupHiDPICanvas(canvas);
 
-  function drawSun(x, y, cloudiness) {
-    const alpha = clamp(1 - cloudiness * 0.65, 0.25, 1);
-    ctx.beginPath();
-    ctx.fillStyle = `rgba(255, 220, 120, ${0.80 * alpha})`;
-    ctx.arc(x, y, 10, 0, Math.PI * 2);
-    ctx.fill();
+    const weatherSelect = $("#weatherSelect");
+    const speedRange = $("#speedRange");
+    const speedVal = $("#speedVal");
+    const togglePlay = $("#togglePlay");
+    const resetDemo = $("#resetDemo");
 
-    ctx.beginPath();
-    ctx.fillStyle = `rgba(255, 220, 160, ${0.12 * alpha})`;
-    ctx.arc(x, y, 26, 0, Math.PI * 2);
-    ctx.fill();
-  }
+    let running = !reduced;
+    let visible = true;
+    let t = 0;           // 0..1 "day progress"
+    let last = 0;
+    let fpsCap = isMobile() ? 30 : 60;
+    let frameInterval = 1000 / fpsCap;
 
-  function drawPanel(x, y, angle, color, label, statusText) {
-    // stand
-    ctx.strokeStyle = "rgba(220,230,255,0.22)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x, y + 52);
-    ctx.lineTo(x, y);
-    ctx.stroke();
+    let weather = (weatherSelect?.value) || "sunny";
+    let daySeconds = Number(speedRange?.value || 12); // seconds per full day
 
-    // panel
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
+    function readControls() {
+      if (weatherSelect) weather = weatherSelect.value;
+      if (speedRange) daySeconds = Number(speedRange.value || 12);
+      if (speedVal) speedVal.textContent = String(daySeconds);
+    }
 
-    const pw = W * 0.20;
-    const ph = H * 0.065;
-    roundRect(-pw / 2, -ph / 2, pw, ph, 10);
-    ctx.fillStyle = "rgba(30, 55, 95, 0.90)";
-    ctx.fill();
-    ctx.strokeStyle = "rgba(200,220,255,0.30)";
-    ctx.stroke();
+    function reset() {
+      t = 0;
+    }
 
-    // subtle stripes (lighter on mobile)
-    ctx.globalAlpha = 0.35;
-    ctx.strokeStyle = "rgba(200,220,255,0.22)";
-    ctx.lineWidth = 1;
-    const cols = PERF.isMobile ? 5 : 8;
-    for (let i = 1; i < cols; i++) {
-      const xx = -pw/2 + (pw/cols)*i;
+    // Basic sky + sun trajectory
+    function sunPos(tt) {
+      // tt: 0..1 maps sunrise->sunset across top arc
+      // angle from -150deg to -30deg for visual arc (left to right)
+      const a = (-150 + 120 * tt) * Math.PI / 180;
+      const cx = w * 0.5;
+      const cy = h * 0.55;
+      const rx = w * 0.38;
+      const ry = h * 0.38;
+      return { x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) };
+    }
+
+    function drawBackground() {
+      // lightweight background (no heavy gradients per frame)
+      ctx.clearRect(0, 0, w, h);
+
+      // sky
+      ctx.fillStyle = "rgba(6,14,28,1)";
+      ctx.fillRect(0, 0, w, h);
+
+      // subtle vignette (cheap)
+      ctx.fillStyle = "rgba(0,0,0,0.25)";
+      ctx.fillRect(0, 0, w, h);
+
+      // clouds/dust overlay based on weather
+      if (weather === "cloudy") {
+        ctx.fillStyle = "rgba(180,190,210,0.10)";
+        for (let i = 0; i < 3; i++) {
+          ctx.beginPath();
+          const x = w * (0.25 + i * 0.28);
+          const y = h * 0.35;
+          ctx.ellipse(x, y, w * 0.18, h * 0.13, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (weather === "dusty") {
+        ctx.fillStyle = "rgba(200,170,120,0.08)";
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      // ground
+      ctx.fillStyle = "rgba(8,18,36,1)";
+      ctx.fillRect(0, h * 0.72, w, h * 0.28);
+    }
+
+    function drawSun(p) {
+      // glow cheap: two circles
       ctx.beginPath();
-      ctx.moveTo(xx, -ph/2);
-      ctx.lineTo(xx,  ph/2);
+      ctx.fillStyle = "rgba(255,220,140,0.18)";
+      ctx.arc(p.x, p.y, 22, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.fillStyle = "rgba(255,210,120,0.95)";
+      ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawPanel(x, y, rot, label, statusColor, statusText) {
+      // mount
+      ctx.strokeStyle = "rgba(255,255,255,0.12)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, y + 38);
+      ctx.stroke();
+
+      // panel body
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      const pw = 110, ph = 44;
+      ctx.fillStyle = "rgba(40,70,120,0.35)";
+      ctx.strokeStyle = "rgba(180,220,255,0.18)";
+      ctx.lineWidth = 2;
+      roundRect(ctx, -pw / 2, -ph / 2, pw, ph, 8);
+      ctx.fill(); ctx.stroke();
+
+      // simple grid
+      ctx.strokeStyle = "rgba(180,220,255,0.10)";
+      ctx.lineWidth = 1;
+      for (let i = -pw/2 + 10; i < pw/2; i += 14) {
+        ctx.beginPath();
+        ctx.moveTo(i, -ph/2 + 6);
+        ctx.lineTo(i, ph/2 - 6);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // label
+      ctx.fillStyle = "rgba(230,240,255,0.9)";
+      ctx.font = "12px system-ui, -apple-system, Segoe UI, Arial";
+      ctx.fillText(label, x - 60, y + 72);
+
+      // status
+      ctx.fillStyle = statusColor;
+      ctx.fillRect(x - 60, y + 82, 10, 10);
+      ctx.fillStyle = "rgba(230,240,255,0.75)";
+      ctx.fillText(statusText, x - 44, y + 92);
+    }
+
+    function roundRect(ctx2, x, y, w2, h2, r) {
+      const rr = Math.min(r, w2 / 2, h2 / 2);
+      ctx2.beginPath();
+      ctx2.moveTo(x + rr, y);
+      ctx2.arcTo(x + w2, y, x + w2, y + h2, rr);
+      ctx2.arcTo(x + w2, y + h2, x, y + h2, rr);
+      ctx2.arcTo(x, y + h2, x, y, rr);
+      ctx2.arcTo(x, y, x + w2, y, rr);
+      ctx2.closePath();
+    }
+
+    function panelRotationTowardsSun(panelX, panelY, sunX, sunY) {
+      // rotate panel normal towards sun direction (visual only)
+      const dx = sunX - panelX;
+      const dy = sunY - panelY;
+      const ang = Math.atan2(dy, dx);
+      // panel should face sun; subtract 90° to align rectangle look
+      return ang;
+    }
+
+    function computeTracking(tt) {
+      const sun = sunPos(tt);
+
+      // Fixed panel: set to a morning-optimized fixed angle (constant)
+      const fixedRot = (-55) * Math.PI / 180;
+
+      // Sensor tracker: follows sun ONLY if weather is sunny; otherwise "loses" (stops updating)
+      let sensorRot;
+      if (weather === "sunny") {
+        sensorRot = panelRotationTowardsSun(w * 0.5, h * 0.80, sun.x, sun.y);
+      } else if (weather === "cloudy") {
+        // intermittent loss: follows until mid-day then drifts
+        if (tt < 0.45) sensorRot = panelRotationTowardsSun(w * 0.5, h * 0.80, sun.x, sun.y);
+        else sensorRot = (-35) * Math.PI / 180;
+      } else {
+        // dusty: dirty sensor loses earlier
+        if (tt < 0.30) sensorRot = panelRotationTowardsSun(w * 0.5, h * 0.80, sun.x, sun.y);
+        else sensorRot = (-20) * Math.PI / 180;
+      }
+
+      // SUNFLOWER: always follows sun
+      const algoRot = panelRotationTowardsSun(w * 0.8, h * 0.80, sun.x, sun.y);
+
+      return { sun, fixedRot, sensorRot, algoRot };
+    }
+
+    function draw(tt) {
+      drawBackground();
+      const { sun, fixedRot, sensorRot, algoRot } = computeTracking(tt);
+      drawSun(sun);
+
+      // positions for three systems
+      const x1 = w * 0.18, x2 = w * 0.50, x3 = w * 0.82;
+      const y = h * 0.84;
+
+      // statuses
+      const fixedStatus = tt > 0.55 ? ["rgba(255,110,110,0.9)", "Low capture"] : ["rgba(110,255,160,0.9)", "OK"];
+      const sensorOk = (weather === "sunny") || (weather === "cloudy" && tt < 0.45) || (weather === "dusty" && tt < 0.30);
+      const sensorStatus = sensorOk ? ["rgba(110,255,160,0.9)", "Tracking OK"] : ["rgba(255,200,110,0.9)", "Lost (sensor)"];
+      const algoStatus = ["rgba(110,255,160,0.9)", "Stable tracking"];
+
+      drawPanel(x1, y, fixedRot, "Fixed Panel", fixedStatus[0], fixedStatus[1]);
+      drawPanel(x2, y, sensorRot, "Sensor Tracker", sensorStatus[0], sensorStatus[1]);
+      drawPanel(x3, y, algoRot, "SUNFLOWER", algoStatus[0], algoStatus[1]);
+
+      // top caption
+      ctx.fillStyle = "rgba(230,240,255,0.9)";
+      ctx.font = "14px system-ui, -apple-system, Segoe UI, Arial";
+      const hh = Math.floor(tt * 24);
+      const mm = Math.floor((tt * 24 - hh) * 60);
+      const timeStr = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+      ctx.fillText(`Day simulation — ${timeStr}`, 16, 22);
+
+      // weather label
+      ctx.fillStyle = "rgba(230,240,255,0.65)";
+      ctx.font = "12px system-ui, -apple-system, Segoe UI, Arial";
+      ctx.fillText(`Weather: ${weather}`, 16, 40);
+    }
+
+    function tick(ts) {
+      if (!last) last = ts;
+      const dt = ts - last;
+
+      if (running && visible && dt >= frameInterval) {
+        last = ts;
+        // speed: daySeconds seconds for full cycle
+        const step = dt / (daySeconds * 1000);
+        t = (t + step) % 1;
+        draw(t);
+      } else if (!running || !visible) {
+        // still draw once so it doesn't go blank
+        draw(t);
+        last = ts;
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    // controls
+    weatherSelect?.addEventListener("change", () => { readControls(); });
+    speedRange?.addEventListener("input", () => { readControls(); });
+    togglePlay?.addEventListener("click", () => {
+      running = !running;
+      togglePlay.textContent = running ? "Pause" : "Play";
+    });
+    resetDemo?.addEventListener("click", () => reset());
+
+    // visibility pause
+    observeVisibility(canvas, (v) => { visible = v; });
+
+    // resize
+    const onResize = () => {
+      ({ ctx, w, h } = setupHiDPICanvas(canvas));
+      draw(t);
+    };
+    window.addEventListener("resize", () => {
+      // small debounce
+      clearTimeout(window.__demoResizeT);
+      window.__demoResizeT = setTimeout(onResize, 120);
+    });
+
+    readControls();
+    draw(t);
+    requestAnimationFrame(tick);
+  }
+
+  // ---------- 5) Web calculator (Sun position) ----------
+  function initCalculator() {
+    // IDs can be yours; this supports both old and new naming patterns
+    const dateInput = $("#dateInput") || $("#calcDate");
+    const timeInput = $("#timeInput") || $("#calcTime");
+    const latInput = $("#latInput") || $("#calcLat");
+    const lonInput = $("#lonInput") || $("#calcLon");
+    const tzInput  = $("#tzInput")  || $("#calcTz");
+    const out      = $("#result")   || $("#calcResult");
+    const canvas   = $("#chart")    || $("#altitudeCanvas");
+    const btn      = $("#calcBtn")  || $("#computeBtn") || $("#calcCompute");
+    const demoBtn  = $("#useDemo")  || $("#useUKDemo")  || $("#useUstDemo");
+
+    // If calculator block not present — skip
+    if (!dateInput || !timeInput || !latInput || !lonInput || !tzInput || !out || !canvas) return;
+
+    const degToRad = (deg) => deg * Math.PI / 180;
+    const radToDeg = (rad) => rad * 180 / Math.PI;
+
+    function dayOfYearUTC(d) {
+      const start = Date.UTC(d.getUTCFullYear(), 0, 0);
+      const now = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      return Math.floor((now - start) / 86400000);
+    }
+
+    function compute(date, lat, lon, tz) {
+      const n = dayOfYearUTC(date);
+      const hour = date.getHours();
+      const minute = date.getMinutes();
+      const second = date.getSeconds();
+
+      const gamma = 2 * Math.PI / 365 * (n - 1 + (hour - 12) / 24);
+
+      const eqtime = 229.18 * (
+        0.000075 + 0.001868 * Math.cos(gamma) - 0.032077 * Math.sin(gamma)
+        - 0.014615 * Math.cos(2 * gamma) - 0.040849 * Math.sin(2 * gamma)
+      );
+
+      const decl = 0.006918 - 0.399912 * Math.cos(gamma) + 0.070257 * Math.sin(gamma)
+        - 0.006758 * Math.cos(2 * gamma) + 0.000907 * Math.sin(2 * gamma)
+        - 0.002697 * Math.cos(3 * gamma) + 0.00148 * Math.sin(3 * gamma);
+
+      const timeOffset = eqtime + 4 * lon - 60 * tz;
+      const tst = hour * 60 + minute + second / 60 + timeOffset;
+      const ha = (tst / 4) - 180;
+
+      const haRad = degToRad(ha);
+      const latRad = degToRad(lat);
+
+      const cosZenith = Math.sin(latRad) * Math.sin(decl) + Math.cos(latRad) * Math.cos(decl) * Math.cos(haRad);
+      const zenith = radToDeg(Math.acos(clamp(cosZenith, -1, 1)));
+      const altitude = 90 - zenith;
+
+      // azimuth
+      const sinAz = -(Math.sin(latRad) * Math.cos(decl) - Math.sin(decl) * Math.cos(latRad) * Math.cos(haRad))
+        / Math.sin(Math.acos(clamp(cosZenith, -1, 1)));
+      const cosAz = (Math.sin(decl) - Math.sin(latRad) * cosZenith)
+        / (Math.cos(latRad) * Math.sin(Math.acos(clamp(cosZenith, -1, 1))));
+
+      let azimuth = radToDeg(Math.atan2(sinAz, cosAz));
+      if (azimuth < 0) azimuth += 360;
+
+      const solarNoonMin = 720 - 4 * lon - eqtime;
+      const snoonH = Math.floor(solarNoonMin / 60);
+      const snoonM = Math.floor(solarNoonMin % 60);
+
+      return {
+        n, gamma, eqtime, decl,
+        timeOffset, tst, ha,
+        zenith, azimuth, altitude,
+        solarNoon: `${String(snoonH).padStart(2, "0")}:${String(snoonM).padStart(2, "0")}`
+      };
+    }
+
+    function drawAltitudeChart(lat, lon, tz, date) {
+      const { ctx, w, h } = setupHiDPICanvas(canvas);
+
+      // background
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "rgba(10,18,36,1)";
+      ctx.fillRect(0, 0, w, h);
+
+      // grid
+      ctx.strokeStyle = "rgba(255,255,255,0.10)";
+      ctx.lineWidth = 1;
+      ctx.font = "12px system-ui, -apple-system, Segoe UI, Arial";
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
+
+      for (let alt = 0; alt <= 90; alt += 30) {
+        const y = h - (alt / 100) * h;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+        ctx.fillText(`${alt}°`, 6, y - 4);
+      }
+
+      for (let hour = 0; hour <= 24; hour += 6) {
+        const x = (hour / 24) * w;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+        ctx.fillText(`${hour}:00`, x + 4, h - 8);
+      }
+
+      // curve (step 15 min)
+      const points = [];
+      for (let hh = 0; hh <= 24; hh += 0.25) {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        d.setHours(Math.floor(hh), Math.floor((hh % 1) * 60), 0, 0);
+        const res = compute(d, lat, lon, tz);
+        const alt = res.altitude;
+
+        const x = (hh / 24) * w;
+        const y = h - ((alt + 10) / 100) * h; // shift up slightly
+        points.push({ x, y });
+      }
+
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(120,220,255,0.9)";
+      ctx.lineWidth = 2;
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
       ctx.stroke();
     }
-    ctx.restore();
-    ctx.globalAlpha = 1;
 
-    // label
-    ctx.fillStyle = "rgba(235,245,255,0.90)";
-    ctx.font = PERF.isMobile ? "12px system-ui" : "13px system-ui";
-    ctx.fillText(label, x - (W * 0.15), y - 62);
+    function run() {
+      const dateStr = dateInput.value;
+      const timeStr = timeInput.value;
+      const lat = parseFloat(latInput.value);
+      const lon = parseFloat(lonInput.value);
+      const tz = parseFloat(tzInput.value);
 
-    // status dot + text
-    ctx.fillStyle = color;
-    ctx.fillRect(x - (W * 0.15), y - 46, 10, 10);
-    ctx.fillStyle = "rgba(235,245,255,0.75)";
-    ctx.fillText(statusText, x - (W * 0.15) + 16, y - 37);
-  }
+      if (!dateStr || !timeStr || !Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(tz)) {
+        out.textContent = "Please fill Date, Time, Latitude, Longitude, and Time zone.";
+        return;
+      }
 
-  function computeCloudiness(day01) {
-    // auto cloudiness if "cloudy", otherwise mostly clear
-    if (weatherMode === "sunny") return 0.12;
-    if (weatherMode === "cloudy") {
-      const mid = Math.exp(-Math.pow((day01 - 0.55) / 0.18, 2));
-      const wobble = 0.08 * Math.sin(t * 0.9);
-      return clamp(0.20 + 0.75 * mid + wobble, 0, 1);
-    }
-    // dusty: sky mostly clear, but sensors can fail (dirty)
-    return 0.18;
-  }
+      const date = new Date(`${dateStr}T${timeStr}:00`);
+      const r = compute(date, lat, lon, tz);
 
-  // Panels tracking models
-  const panelState = {
-    sensorAngle: 0,
-    sunflowerAngle: 0,
-    sensorOk: true
-  };
+      out.textContent =
+        `Equation of Time: ${r.eqtime.toFixed(2)} min\n` +
+        `Declination: ${radToDeg(r.decl).toFixed(2)}°\n` +
+        `Time correction: ${r.timeOffset.toFixed(2)} min\n` +
+        `True Solar Time: ${r.tst.toFixed(2)} min\n` +
+        `Hour angle: ${r.ha.toFixed(2)}°\n` +
+        `Zenith angle: ${r.zenith.toFixed(2)}°\n` +
+        `Azimuth: ${r.azimuth.toFixed(2)}°\n` +
+        `Solar altitude: ${r.altitude.toFixed(2)}°\n` +
+        `Solar noon: ${r.solarNoon}`;
 
-  function trackerAngles(sunA, day01, cloudiness) {
-    // Map sun direction to "panel rotation"
-    const target = clamp((sunA - Math.PI * 1.5) * 0.9, -1.15, 1.15);
-
-    // fixed: constant angle (no tracking)
-    const fixed = -0.35;
-
-    // sensor tracker: can fail in cloudy or dusty (dirty sensor)
-    const dirtyWindow = (day01 > 0.46 && day01 < 0.62); // midday-ish in demo
-    const failByCloud = cloudiness > 0.62;
-    const failByDust = (weatherMode === "dusty") && dirtyWindow;
-    const sensorFail = failByCloud || failByDust;
-
-    if (!sensorFail) {
-      panelState.sensorAngle = lerp(panelState.sensorAngle, target, PERF.isMobile ? 0.12 : 0.18);
-      panelState.sensorOk = true;
-    } else {
-      // stops tracking: keep last angle
-      panelState.sensorOk = false;
+      drawAltitudeChart(lat, lon, tz, date);
     }
 
-    // SUNFLOWER: always tracks (small controlled error)
-    panelState.sunflowerAngle = lerp(panelState.sunflowerAngle, target, PERF.isMobile ? 0.16 : 0.22);
-    const smallErr = (PERF.isMobile ? 0.006 : 0.01) * Math.sin(t * 1.7);
-    const sunflower = panelState.sunflowerAngle + smallErr;
-
-    return { fixed, sensor: panelState.sensorAngle, sunflower, sensorOk: panelState.sensorOk };
-  }
-
-  function drawLegendHeader(day01, cloudiness) {
-    // Day time label
-    const hours = Math.floor(day01 * 24);
-    const mins = Math.floor((day01 * 24 - hours) * 60);
-    const timeStr = `${String(hours).padStart(2,"0")}:${String(mins).padStart(2,"0")}`;
-
-    ctx.fillStyle = "rgba(235,245,255,0.88)";
-    ctx.font = PERF.isMobile ? "12px system-ui" : "13px system-ui";
-    ctx.fillText(`Time: ${timeStr}`, 14, 22);
-
-    const weatherText =
-      weatherMode === "sunny" ? "Sunny" :
-      weatherMode === "cloudy" ? "Cloudy" :
-      "Dusty (dirty sensor)";
-
-    ctx.fillStyle = "rgba(235,245,255,0.70)";
-    ctx.fillText(`Weather mode: ${weatherText}`, 14, 40);
-
-    // tiny cloudiness bar
-    const bx = 14, by = 54, bw = 160, bh = 8;
-    roundRect(bx, by, bw, bh, 999);
-    ctx.fillStyle = "rgba(255,255,255,0.08)";
-    ctx.fill();
-    roundRect(bx, by, bw * clamp(cloudiness, 0, 1), bh, 999);
-    ctx.fillStyle = "rgba(120,200,255,0.35)";
-    ctx.fill();
-  }
-
-  function renderFrame(dt) {
-    // dt in seconds
-    const dtSafe = PERF.prefersReducedMotion ? dt * 0.6 : dt;
-    if (playing) t += dtSafe;
-
-    // Map t to day progress 0..1 based on secondsPerDay
-    const day01 = ((t % secondsPerDay) / secondsPerDay);
-    const cloudiness = computeCloudiness(day01);
-
-    drawBackground(cloudiness);
-
-    // sun
-    const sun = sunPos(day01);
-    drawSun(sun.x, sun.y, cloudiness);
-
-    // panels positions
-    const baseY = H * 0.78 - 50;
-    const x1 = W * 0.20;
-    const x2 = W * 0.50;
-    const x3 = W * 0.80;
-
-    const ang = trackerAngles(sun.a, day01, cloudiness);
-
-    // FIXED: good mostly before afternoon
-    const fixedGood = (day01 > 0.10 && day01 < 0.58);
-    const fixedColor = fixedGood ? "rgba(60,220,140,0.92)" : "rgba(255,120,120,0.92)";
-    drawPanel(x1, baseY, ang.fixed, fixedColor, "Fixed Panel", fixedGood ? "Working window" : "Low capture");
-
-    // SENSOR: can fail
-    const sensorColor = ang.sensorOk ? "rgba(60,220,140,0.92)" : "rgba(255,120,120,0.92)";
-    const sensorStatus = ang.sensorOk ? "Tracking OK" : "Tracking lost";
-    drawPanel(x2, baseY, ang.sensor, sensorColor, "Sensor Tracker", sensorStatus);
-
-    // SUNFLOWER: stable
-    drawPanel(x3, baseY, ang.sunflower, "rgba(60,220,140,0.92)", "SUNFLOWER", "Stable tracking");
-
-    // header text
-    drawLegendHeader(day01, cloudiness);
-
-    // If sensor failed, show hint
-    if (!ang.sensorOk) {
-      ctx.fillStyle = "rgba(255,140,140,0.95)";
-      ctx.font = PERF.isMobile ? "12px system-ui" : "13px system-ui";
-      ctx.fillText(
-        weatherMode === "dusty" ? "Reason: dirty photodetector" : "Reason: heavy clouds",
-        W - (PERF.isMobile ? 210 : 230),
-        40
-      );
+    // default demo values (Ust-Kamenogorsk)
+    function setDemo() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      dateInput.value = `${yyyy}-${mm}-${dd}`;
+      timeInput.value = "12:00";
+      latInput.value = "49.946";
+      lonInput.value = "82.604";
+      tzInput.value = "5";
+      run();
     }
+
+    btn?.addEventListener("click", run);
+    demoBtn?.addEventListener("click", setDemo);
+
+    // Render once with demo if empty
+    if (!dateInput.value || !timeInput.value) setDemo();
+    else run();
   }
 
-  // RAF loop with fixed timestep for stable FPS
-  let rafId = 0;
-  let last = performance.now();
-  let acc = 0;
-  const stepMs = 1000 / PERF.targetFPS;
-
-  function loop(now) {
-    rafId = requestAnimationFrame(loop);
-    if (!visible) return;
-
-    const dtMs = Math.min(PERF.isMobile ? 40 : 26, now - last);
-    last = now;
-    acc += dtMs;
-
-    // update at fixed rate
-    while (acc >= stepMs) {
-      renderFrame(stepMs / 1000);
-      acc -= stepMs;
-      if (PERF.isMobile) break; // avoid too many iterations on slow phones
-    }
-  }
-
-  cancelAnimationFrame(rafId);
-  rafId = requestAnimationFrame(loop);
-
-  // Controls wiring
-  weatherSelect?.addEventListener("change", () => {
-    weatherMode = weatherSelect.value;
-  }, { passive: true });
-
-  speedRange?.addEventListener("input", () => {
-    secondsPerDay = Number(speedRange.value || 12);
-    if (speedVal) speedVal.textContent = String(secondsPerDay);
-  }, { passive: true });
-
-  togglePlay?.addEventListener("click", () => {
-    playing = !playing;
-    togglePlay.textContent = playing ? "Pause" : "Play";
-    last = performance.now();
+  // ---------- boot ----------
+  document.addEventListener("DOMContentLoaded", () => {
+    initClimateChart();
+    initBars();
+    initFormulaPanel();
+    initTrackingDemo();
+    initCalculator();
   });
 
-  resetBtn?.addEventListener("click", () => {
-    t = 0;
-    panelState.sensorAngle = 0;
-    panelState.sunflowerAngle = 0;
-    panelState.sensorOk = true;
-    last = performance.now();
-  });
-
-  // Pause when tab hidden
-  document.addEventListener("visibilitychange", () => {
-    visible = !document.hidden;
-    last = performance.now();
-  }, { passive: true });
-}
-
-/* ------------------ INIT ------------------ */
-document.addEventListener("DOMContentLoaded", () => {
-  // Bars
-  renderBars("energyBars", energyData, 1800);
-  renderBars("costBars", costData, 1600);
-
-  // Climate chart
-  initClimateChart();
-
-  // Formula panel
-  initFormulaPanel();
-
-  // Demo animation (YOUR #demo + #trackerDemo)
-  initDemoAnimation();
-}, { passive: true });
-
-window.addEventListener("resize", throttle(() => {
-  initClimateChart();
-}, 260), { passive: true });
+})();
