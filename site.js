@@ -1,84 +1,1025 @@
-/* site.js — SUNFLOWER (stable on mobile + desktop)
-   Includes:
-   - Climate chart (Chart.js) if #tempChartCanvas exists
-   - Comparison bars if #energyBars / #costBars exist
-   - Formula panel if #formulaPanel and .formulaTile exist
-   - Tracking demo canvas (3-system comparison) if #trackerDemo exists
-   - Web calculator (Sun position) if calculator IDs exist
-*/
-(() => {
-  "use strict";
+ =====================================================
+// SUNFLOWER — site.js
+// - Bar charts (no libs)
+// - Climate chart (Chart.js)
+// - 11 formula buttons -> panel (English content)
+// =====================================================
 
-  // ---------- helpers ----------
-  const $ = (sel, root = document) => root.querySelector(sel);
-  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const isMobile = () => matchMedia("(max-width: 768px)").matches;
-  const prefersReduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  function safeText(s) {
-    return String(s ?? "");
+// ===============================
+// 1) SIMPLE BAR CHARTS (no libs)
+// ===============================
+function renderBars(containerId, items, maxValue){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+
+  container.innerHTML = "";
+
+  items.forEach(item => {
+    const row = document.createElement("div");
+    row.className = "barRow";
+
+    const label = document.createElement("div");
+    label.className = "barLabel";
+    label.textContent = item.label;
+
+    const track = document.createElement("div");
+    track.className = "barTrack";
+
+    const fill = document.createElement("div");
+    fill.className = "barFill";
+
+    const percent = Math.max(0, Math.min(1, item.value / maxValue));
+    fill.style.width = (percent * 100).toFixed(1) + "%";
+
+    track.appendChild(fill);
+
+    const value = document.createElement("div");
+    value.className = "barValue";
+    value.textContent = item.valueText || String(item.value);
+
+    row.appendChild(label);
+    row.appendChild(track);
+    row.appendChild(value);
+
+    container.appendChild(row);
+  });
+}
+
+// Data (replace later with your final cited sources if needed)
+const energyData = [
+  { label: "Fixed system", value: 1350, valueText: "1350" },
+  { label: "Conventional tracker", value: 1600, valueText: "1600" },
+  { label: "SUNFLOWER", value: 1700, valueText: "1700" }
+];
+
+const costData = [
+  { label: "Fixed system", value: 1225, valueText: "1200–1250" },
+  { label: "Sensor-based tracker", value: 1450, valueText: "1400–1500" },
+  { label: "SUNFLOWER", value: 1400, valueText: "1350–1450" }
+];
+
+
+// ===================================
+// 2) CLIMATE CHART (Chart.js)
+// ===================================
+function renderClimateChart(){
+  const canvas = document.getElementById("tempChartCanvas");
+  if(!canvas || typeof Chart === "undefined") return;
+
+  // Demo points (replace with NASA/NOAA dataset later)
+  const years = [1880, 1900, 1920, 1940, 1960, 1980, 2000, 2010, 2020, 2025];
+  const anomaly = [-0.18, -0.12, -0.08, 0.05, 0.02, 0.18, 0.42, 0.62, 0.98, 1.15];
+
+  new Chart(canvas, {
+    type: "line",
+    data: {
+      labels: years,
+      datasets: [{
+        label: "Global temperature anomaly (°C) — demo",
+        data: anomaly,
+        tension: 0.25,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: "Year" },
+          grid: { display: false }
+        },
+        y: {
+          title: { display: true, text: "Anomaly (°C)" }
+        }
+      }
+    }
+  });
+}
+
+
+// ===================================
+// 3) FORMULA PANEL (11 buttons)
+// ===================================
+const formulaContent = {
+  gamma: {
+    title: "γ — Fractional Year",
+    definition: `
+      <p><b>γ</b> converts the day/time into an annual angle (seasonal phase). It is used in
+      solar declination and Equation of Time approximations.</p>
+    `,
+    derivation: `
+      <p>The annual cycle is periodic, so we map the day number to an angle:
+      one full year corresponds to <b>2π</b> radians.</p>
+    `,
+    eq: String.raw`
+      \[
+      \gamma = \frac{2\pi}{365}\left(n - 1 + \frac{h - 12}{24}\right)
+      \]
+    `
+  },
+
+  et: {
+    title: "ET — Equation of Time",
+    definition: `
+      <p><b>ET</b> is the time difference between true solar time and mean clock time,
+      mainly due to orbital eccentricity and Earth’s axial tilt.</p>
+    `,
+    derivation: `
+      <p>ET varies periodically through the year, so it is approximated by a sum of
+      sine/cosine harmonics of <b>γ</b> (standard NOAA/SPA style).</p>
+    `,
+    eq: String.raw`
+      \[
+      ET = 229.18\left(
+      0.000075 + 0.001868\cos\gamma - 0.032077\sin\gamma
+      - 0.014615\cos(2\gamma) - 0.040849\sin(2\gamma)
+      \right)
+      \]
+    `
+  },
+
+  delta: {
+    title: "δ — Solar Declination",
+    definition: `
+      <p><b>δ</b> is the angle between the Sun’s rays and the Earth’s equatorial plane.
+      It controls seasonal changes in solar height.</p>
+    `,
+    derivation: `
+      <p>Declination is nearly sinusoidal over the year; higher accuracy uses several
+      harmonics of <b>γ</b>.</p>
+    `,
+    eq: String.raw`
+      \[
+      \delta =
+      0.006918
+      - 0.399912\cos\gamma
+      + 0.070257\sin\gamma
+      - 0.006758\cos(2\gamma)
+      + 0.000907\sin(2\gamma)
+      - 0.002697\cos(3\gamma)
+      + 0.00148\sin(3\gamma)
+      \]
+    `
+  },
+
+  tf: {
+    title: "t_f — Time Correction",
+    definition: `
+      <p><b>t_f</b> corrects local clock time to solar time using longitude difference and ET.</p>
+    `,
+    derivation: `
+      <p>Earth rotates 360° in 24 hours ⇒ <b>1° ≈ 4 minutes</b>. Add ET to account for orbital effects.</p>
+    `,
+    eq: String.raw`
+      \[
+      t_f = 4\,(L_{st}-L_{loc}) + ET
+      \]
+    `
+  },
+
+  tst: {
+    title: "t_st — True Solar Time",
+    definition: `
+      <p><b>t_st</b> is time defined by the Sun’s apparent motion (solar time).</p>
+    `,
+    derivation: `
+      <p>It is computed by applying the correction <b>t_f</b> to local time.</p>
+    `,
+    eq: String.raw`
+      \[
+      t_{st} = t + \frac{t_f}{60}
+      \]
+    `
+  },
+
+  ha: {
+    title: "h_a — Hour Angle",
+    definition: `
+      <p><b>h_a</b> measures the Sun’s angular displacement from solar noon (when <b>h_a = 0</b>).</p>
+    `,
+    derivation: `
+      <p>Earth rotates 15° per hour, so hour angle is proportional to \((t_{st}-12)\).</p>
+    `,
+    eq: String.raw`
+      \[
+      h_a = 15^\circ\,(t_{st}-12)
+      \]
+    `
+  },
+
+  phi: {
+    title: "φ — Zenith Angle",
+    definition: `
+      <p><b>φ</b> is the zenith angle: the angle between the Sun direction and the upward vertical (zenith).</p>
+    `,
+    derivation: `
+      <p>From spherical trigonometry on the celestial sphere (latitude, declination, hour angle),
+      we obtain the cosine form for the zenith angle.</p>
+    `,
+    eq: String.raw`
+      \[
+      \cos(\varphi) = \sin(lat)\sin(\delta) + \cos(lat)\cos(\delta)\cos(h_a)
+      \]
+    `
+  },
+
+  theta: {
+    title: "θ — Azimuth",
+    definition: `
+      <p><b>θ</b> is the horizontal direction of the Sun (angle in the horizon plane).</p>
+    `,
+    derivation: `
+      <p>Using spherical trigonometry, <b>atan2</b> is used to get the correct quadrant for azimuth.</p>
+    `,
+    eq: String.raw`
+      \[
+      \theta = \operatorname{atan2}\left(\sin(h_a),\, \cos(h_a)\sin(lat)-\tan(\delta)\cos(lat)\right)
+      \]
+    `
+  },
+
+  sr: {
+    title: "S_r,t — Sunrise & Sunset",
+    definition: `
+      <p><b>S_{r,t}</b> represent sunrise and sunset times. At sunrise/sunset, solar elevation is ~0°,
+      so the zenith angle is ~90°.</p>
+    `,
+    derivation: `
+      <p>Set \(\cos(\varphi)=0\) (horizon condition) and solve for the sunrise/sunset hour angle \(h_{a0}\),
+      then convert angle to time (15° per hour).</p>
+    `,
+    eq: String.raw`
+      \[
+      \cos(h_{a0}) = -\tan(lat)\tan(\delta)
+      \]
+      \[
+      S_r = 12 - \frac{h_{a0}}{15^\circ}, \quad
+      S_t = 12 + \frac{h_{a0}}{15^\circ}
+      \]
+    `
+  },
+
+  snoon: {
+    title: "S_noon — Solar Noon",
+    definition: `
+      <p><b>S_{noon}</b> is the moment when the Sun reaches its highest point (hour angle <b>h_a=0</b>).</p>
+    `,
+    derivation: `
+      <p>Solar noon is 12:00 in true solar time, so the clock-time shift depends on the time correction.</p>
+    `,
+    eq: String.raw`
+      \[
+      S_{noon} = 12 - \frac{t_f}{60}
+      \]
+    `
+  },
+
+  dalpha: {
+    title: "Δα — Angular Error",
+    definition: `
+      <p><b>Δα</b> measures the difference between a reference angle and the algorithm output
+      (used to quantify tracking accuracy).</p>
+    `,
+    derivation: `
+      <p>The simplest accuracy metric is the absolute difference between angles (and similarly for azimuth).</p>
+    `,
+    eq: String.raw`
+      \[
+      \Delta \alpha = \left| \alpha_{\text{ref}} - \alpha_{\text{alg}} \right|
+      \]
+      \[
+      \Delta \theta = \left| \theta_{\text{ref}} - \theta_{\text{alg}} \right|
+      \]
+    `
   }
+};
 
-  // Use lower DPR on mobile to avoid lag
-  function getSafeDPR() {
-    const dpr = window.devicePixelRatio || 1;
-    if (isMobile()) return Math.min(dpr, 1.5);
-    return Math.min(dpr, 2);
+function typesetMath(container){
+  if(window.MathJax && MathJax.typesetPromise){
+    MathJax.typesetPromise([container]).catch(()=>{});
   }
+}
 
-  function setupHiDPICanvas(canvas) {
-    const dpr = getSafeDPR();
-    const cssW = canvas.clientWidth || canvas.width || 600;
-    const cssH = canvas.clientHeight || canvas.height || 320;
+function openFormulaPanel(key){
+  const panel = document.getElementById("formulaPanel");
+  const titleEl = document.getElementById("panelTitle");
+  const bodyEl  = document.getElementById("panelBody");
+  if(!panel || !titleEl || !bodyEl) return;
 
+  const data = formulaContent[key];
+  if(!data) return;
+
+  titleEl.textContent = data.title;
+
+  bodyEl.innerHTML = `
+    <div class="panelBlock">
+      <h4>Definition</h4>
+      ${data.definition}
+    </div>
+
+    <div class="panelBlock">
+      <h4>Derivation (short)</h4>
+      ${data.derivation}
+    </div>
+
+    <div class="panelBlock">
+      <h4>Formula</h4>
+      <div class="mathBox">${data.eq}</div>
+    </div>
+  `;
+
+  panel.classList.remove("hidden");
+  typesetMath(panel);
+
+  panel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeFormulaPanel(){
+  const panel = document.getElementById("formulaPanel");
+  if(panel) panel.classList.add("hidden");
+}
+
+
+// ===================================
+// 4) INIT
+// ===================================
+document.addEventListener("DOMContentLoaded", () => {
+
+  // Bars
+  renderBars("energyBars", energyData, 1800);
+  renderBars("costBars", costData, 1600);
+
+  // Climate chart
+  renderClimateChart();
+
+  // Formula buttons (11)
+  document.querySelectorAll(".formulaTile").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.formula;
+      openFormulaPanel(key);
+    });
+  });
+
+  // Close button
+  const closeBtn = document.getElementById("panelClose");
+  if(closeBtn) closeBtn.addEventListener("click", closeFormulaPanel);
+
+  // Close on ESC
+  document.addEventListener("keydown", (e) => {
+    if(e.key === "Escape") closeFormulaPanel();
+  });
+});
+
+/* ============================
+   3-System Tracking Demo
+   ============================ */
+
+(function initTrackerDemo(){
+  const canvas = document.getElementById("trackerDemo");
+  if(!canvas) return;
+
+  const weatherSelect = document.getElementById("weatherSelect");
+  const speedRange = document.getElementById("speedRange");
+  const speedVal = document.getElementById("speedVal");
+  const togglePlay = document.getElementById("togglePlay");
+  const resetDemo = document.getElementById("resetDemo");
+
+  const ctx = canvas.getContext("2d", { alpha: false });
+
+  // State
+  let weather = (weatherSelect && weatherSelect.value) || "sunny";
+  let secondsPerDay = Number((speedRange && speedRange.value) || 12);
+  let running = true;
+
+  // timeOfDay: 0..1 (sunrise..sunset)
+  let t = 0;                 // normalized day progress
+  let lastTs = performance.now();
+
+  // sensor tracker internal states
+  let sensorLocked = true;
+  let sensorAngle = 0;
+  let sensorHuntPhase = 0;
+
+  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+  function resize(){
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const cssW = canvas.clientWidth || 1000;
+    const cssH = canvas.height; // CSS height comes from attribute
     canvas.width = Math.floor(cssW * dpr);
     canvas.height = Math.floor(cssH * dpr);
-
-    const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return { ctx, w: cssW, h: cssH, dpr };
   }
 
-  // Pause animation when offscreen
-  function observeVisibility(el, onChange) {
-    if (!("IntersectionObserver" in window)) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) onChange(!!e.isIntersecting);
-      },
-      { threshold: 0.08 }
+  function setWeather(v){
+    weather = v;
+    // reset sensor lock a bit (so user sees behavior change)
+    sensorLocked = true;
+    sensorHuntPhase = 0;
+  }
+
+  function setSpeed(v){
+    secondsPerDay = Number(v);
+    if(speedVal) speedVal.textContent = String(secondsPerDay);
+  }
+
+  function reset(){
+    t = 0;
+    sensorLocked = true;
+    sensorAngle = 0;
+    sensorHuntPhase = 0;
+  }
+
+  function sunPos(norm){
+    // arc: left -> right, higher in middle
+    // norm 0..1
+    const x = norm;
+    const y = Math.sin(Math.PI * norm); // 0..1..0
+    return { x, y };
+  }
+
+  function smoothStep(a, b, x){
+    const t = clamp((x - a) / (b - a), 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+
+  function drawRoundedRect(x,y,w,h,r){
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr, y);
+    ctx.arcTo(x+w, y, x+w, y+h, rr);
+    ctx.arcTo(x+w, y+h, x, y+h, rr);
+    ctx.arcTo(x, y+h, x, y, rr);
+    ctx.arcTo(x, y, x+w, y, rr);
+    ctx.closePath();
+  }
+
+  function draw(){
+    const W = canvas.clientWidth || 1000;
+    const H = canvas.height; // CSS pixels
+
+    // Background (dark, blue)
+    ctx.fillStyle = "#070a14";
+    ctx.fillRect(0,0,W,H);
+
+    // subtle gradient stripe
+    const g = ctx.createLinearGradient(0,0,W,0);
+    g.addColorStop(0, "rgba(30,90,160,0.20)");
+    g.addColorStop(0.55, "rgba(0,0,0,0)");
+    g.addColorStop(1, "rgba(50,130,220,0.22)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+
+    const pad = 16;
+    const colGap = 14;
+    const cols = 3;
+    const colW = (W - pad*2 - colGap*(cols-1)) / cols;
+    const cardH = H - pad*2;
+    const top = pad;
+    const lefts = [
+      pad,
+      pad + (colW + colGap),
+      pad + 2*(colW + colGap)
+    ];
+
+    // Sun path area inside each card
+    const skyTop = top + 14;
+    const skyH = cardH * 0.58;
+    const groundY = skyTop + skyH;
+
+    // Sun position
+    const sp = sunPos(t);
+    const sunXn = sp.x;
+    const sunYn = sp.y; // 0..1..0
+
+    // Weather: irradiance and effects
+    let irradiance = 1.0;
+    let cloudCover = 0.0;   // 0..1
+    let sensorDirty = 0.0;  // 0..1
+
+    if(weather === "cloudy"){
+      cloudCover = 0.7;
+      irradiance = 0.55;
+    } else if(weather === "dusty"){
+      sensorDirty = 0.9;
+      irradiance = 0.85; // still sunny, but sensor is blocked
+    }
+
+    // If near sunrise/sunset, lower irradiance a bit (soft)
+    const edgeDim = 1 - smoothStep(0.05, 0.18, t) * smoothStep(0.95, 0.82, t);
+    // edgeDim ~ 1 at edges; invert to dim edges
+    const dayFactor = 0.65 + 0.35 * Math.sin(Math.PI*t);
+    irradiance *= dayFactor;
+
+    // calculate "true" sun angle for panels
+    // Map sun position to an angle for tracking: -60..+60 degrees
+    const sunAngle = (-60 + 120 * sunXn) * Math.PI/180;
+
+    // 1) Fixed panel: constant tilt
+    const fixedAngle = 20 * Math.PI/180;
+
+    // 2) Sensor tracker: follows when locked, loses in cloudy/dusty, hunts
+    // Losing probability depends on cloudCover or sensorDirty.
+    // Also add higher loss at low sun (morning/evening).
+    const lowSun = (sunYn < 0.25) ? 1 : 0;
+    const lossPressure = clamp(0.15 + 0.95*(cloudCover + sensorDirty) + 0.25*lowSun, 0, 1);
+
+    // randomly drop lock sometimes
+    if(sensorLocked){
+      // chance per frame scaled by lossPressure
+      const p = 0.0025 * lossPressure;
+      if(Math.random() < p) sensorLocked = false;
+    } else {
+      // regain lock if weather ok-ish and sun high
+      const regain = (1 - lossPressure) * (sunYn > 0.25 ? 1 : 0.35);
+      const p = 0.015 * regain;
+      if(Math.random() < p) sensorLocked = true;
+    }
+
+    // update sensor angle
+    if(sensorLocked){
+      // smooth follow
+      sensorAngle += (sunAngle - sensorAngle) * 0.08;
+    } else {
+      // hunting motion
+      sensorHuntPhase += 0.12;
+      const hunt = Math.sin(sensorHuntPhase) * (35*Math.PI/180);
+      sensorAngle += (hunt - sensorAngle) * 0.06;
+    }
+
+    // 3) Algorithm tracker: always follows precisely
+    const algoAngle = sunAngle;
+
+    // Draw 3 cards
+    const systems = [
+      { name:"Fixed Panel", angle: fixedAngle, mode:"STATIC", color:"rgba(255,255,255,.65)", status:"OK" },
+      { name:"Sensor Tracker", angle: sensorAngle, mode:"SENSOR", color:"rgba(110,168,255,.85)", status: sensorLocked ? "TRACKING" : "LOST" },
+      { name:"SUNFLOWER", angle: algoAngle, mode:"ALGO", color:"rgba(126,231,135,.90)", status:"LOCKED" }
+    ];
+
+    for(let i=0;i<3;i++){
+      const x0 = lefts[i];
+      const y0 = top;
+      const w = colW;
+      const h = cardH;
+
+      // card
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "rgba(255,255,255,0.04)";
+      ctx.strokeStyle = "rgba(255,255,255,0.10)";
+      drawRoundedRect(x0,y0,w,h,18);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      // title
+      ctx.fillStyle = "rgba(233,238,252,0.92)";
+      ctx.font = "700 16px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.fillText(systems[i].name, x0+14, y0+26);
+
+      // status pill
+      const st = systems[i].status;
+      const pillW = ctx.measureText(st).width + 20;
+      const pillX = x0 + w - pillW - 14;
+      const pillY = y0 + 12;
+      ctx.fillStyle = (i===1 && st==="LOST") ? "rgba(255,120,120,0.16)" : "rgba(255,255,255,0.06)";
+      ctx.strokeStyle = (i===1 && st==="LOST") ? "rgba(255,120,120,0.35)" : "rgba(255,255,255,0.10)";
+      drawRoundedRect(pillX, pillY, pillW, 22, 999);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = (i===1 && st==="LOST") ? "rgba(255,170,170,0.95)" : "rgba(233,238,252,0.78)";
+      ctx.font = "700 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.fillText(st, pillX+10, pillY+15);
+
+      // sky region
+      const skyX = x0 + 12;
+      const skyY = skyTop;
+      const skyW = w - 24;
+      const skyH2 = skyH - 10;
+
+      // sky background
+      const skyG = ctx.createLinearGradient(skyX, skyY, skyX, skyY+skyH2);
+      skyG.addColorStop(0, "rgba(12,18,40,0.95)");
+      skyG.addColorStop(1, "rgba(8,10,22,0.95)");
+      ctx.fillStyle = skyG;
+      drawRoundedRect(skyX, skyY, skyW, skyH2, 16);
+      ctx.fill();
+
+      // sun arc (path)
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for(let k=0;k<=60;k++){
+        const tt = k/60;
+        const p = sunPos(tt);
+        const px = skyX + p.x * skyW;
+        const py = skyY + (1 - p.y) * (skyH2*0.78) + skyH2*0.08;
+        if(k===0) ctx.moveTo(px,py);
+        else ctx.lineTo(px,py);
+      }
+      ctx.stroke();
+
+      // clouds (only cloudy)
+      if(weather === "cloudy"){
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = "rgba(200,220,255,0.10)";
+        const baseY = skyY + 34 + Math.sin(t*6.28 + i)*6;
+        for(let c=0;c<4;c++){
+          const cx = skyX + ( (t*0.6 + c*0.28) % 1 ) * skyW;
+          const cy = baseY + c*8;
+          drawRoundedRect(cx-40, cy, 86, 26, 999);
+          ctx.fill();
+          drawRoundedRect(cx-10, cy-14, 56, 24, 999);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // sun position in this card
+      const sunPx = skyX + sunXn * skyW;
+      const sunPy = skyY + (1 - sunYn) * (skyH2*0.78) + skyH2*0.08;
+
+      // sun glow (dimmed by clouds)
+      const sunAlpha = clamp(0.25 + 0.75*(1-cloudCover), 0.15, 1);
+      ctx.save();
+      const glow = ctx.createRadialGradient(sunPx, sunPy, 4, sunPx, sunPy, 52);
+      glow.addColorStop(0, `rgba(255,220,140,${0.30*sunAlpha})`);
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(sunPx, sunPy, 52, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      // sun disk
+      ctx.fillStyle = `rgba(255,220,140,${0.90*sunAlpha})`;
+      ctx.beginPath();
+      ctx.arc(sunPx, sunPy, 6, 0, Math.PI*2);
+      ctx.fill();
+
+      // ground line
+      const gy = groundY;
+      ctx.strokeStyle = "rgba(255,255,255,0.10)";
+      ctx.beginPath();
+      ctx.moveTo(x0+12, gy);
+      ctx.lineTo(x0+w-12, gy);
+      ctx.stroke();
+
+      // draw panel + stand
+      const panelBaseX = x0 + w*0.5;
+      const panelBaseY = gy + 84;
+
+      // stand
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(panelBaseX, gy+10);
+      ctx.lineTo(panelBaseX, panelBaseY-10);
+      ctx.stroke();
+
+      // tracker head
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.strokeStyle = "rgba(255,255,255,0.12)";
+      drawRoundedRect(panelBaseX-26, panelBaseY-14, 52, 28, 12);
+      ctx.fill(); ctx.stroke();
+
+      // sensors (only for sensor tracker)
+      if(i===1){
+        ctx.save();
+        ctx.fillStyle = sensorDirty > 0.5 ? "rgba(255,160,120,0.65)" : "rgba(233,238,252,0.35)";
+        ctx.beginPath(); ctx.arc(panelBaseX-10, panelBaseY-2, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(panelBaseX+10, panelBaseY-2, 3, 0, Math.PI*2); ctx.fill();
+
+        // dirty overlay indicator
+        if(weather === "dusty"){
+          ctx.fillStyle = "rgba(255,170,120,0.12)";
+          drawRoundedRect(panelBaseX-30, panelBaseY-30, 60, 18, 8);
+          ctx.fill();
+          ctx.fillStyle = "rgba(255,190,160,0.85)";
+          ctx.font = "700 11px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+          ctx.fillText("DIRTY SENSOR", panelBaseX-26, panelBaseY-18);
+        }
+        ctx.restore();
+      }
+
+      // panel rectangle rotated by system angle
+      const ang = systems[i].angle;
+
+      // ray from sun to panel direction indicator (only if sun above horizon)
+      const sunAbove = (sunYn > 0.02);
+      if(sunAbove){
+        ctx.save();
+        const rayAlpha = 0.10 + 0.18 * irradiance;
+        ctx.strokeStyle = `rgba(255,220,140,${rayAlpha})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(sunPx, sunPy);
+        ctx.lineTo(panelBaseX, panelBaseY);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.translate(panelBaseX, panelBaseY);
+      ctx.rotate(ang);
+      ctx.fillStyle = "rgba(15,23,48,0.85)";
+      ctx.strokeStyle = "rgba(255,255,255,0.16)";
+      ctx.lineWidth = 2;
+
+      // panel (w x h)
+      const pw = 120, ph = 58;
+      drawRoundedRect(-pw/2, -ph/2, pw, ph, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      // panel grid lines
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 1;
+      for(let gx= -pw/2 + 18; gx < pw/2; gx += 18){
+        ctx.beginPath();
+        ctx.moveTo(gx, -ph/2+6);
+        ctx.lineTo(gx, ph/2-6);
+        ctx.stroke();
+      }
+      for(let gy2= -ph/2 + 18; gy2 < ph/2; gy2 += 18){
+        ctx.beginPath();
+        ctx.moveTo(-pw/2+6, gy2);
+        ctx.lineTo(pw/2-6, gy2);
+        ctx.stroke();
+      }
+
+      // highlight border (system color)
+      ctx.strokeStyle = systems[i].color;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.8;
+      drawRoundedRect(-pw/2, -ph/2, pw, ph, 10);
+      ctx.stroke();
+      ctx.restore();
+
+      // compute yield (cos of angular error) * irradiance
+      // treat sun below horizon -> 0
+      const err = Math.abs(sunAngle - ang);
+      let align = Math.cos(err);
+      align = clamp(align, 0, 1);
+      let sysIrr = irradiance;
+
+      // in cloudy, all systems receive less irradiance (already applied),
+      // but sensor tracker when LOST produces additional loss (unnecessary movement / misalignment)
+      if(i===1 && !sensorLocked) align *= 0.35;
+
+      // fixed panel loses in afternoon (misalignment naturally)
+      // already captured by cos(err)
+
+      const yieldVal = (sunAbove ? (align * sysIrr) : 0);
+
+      // yield bar
+      const barX = x0 + 14;
+      const barY = y0 + h - 46;
+      const barW = w - 28;
+      const barH = 14;
+
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.strokeStyle = "rgba(255,255,255,0.12)";
+      drawRoundedRect(barX, barY, barW, barH, 999);
+      ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle = systems[i].color;
+      const fillW = barW * yieldVal;
+      drawRoundedRect(barX, barY, fillW, barH, 999);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(233,238,252,0.75)";
+      ctx.font = "600 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      const pct = Math.round(yieldVal*100);
+      ctx.fillText(`Yield: ${pct}%`, barX, barY + 32);
+
+      // small caption about failure
+      if(i===1 && !sensorLocked){
+        ctx.fillStyle = "rgba(255,170,170,0.85)";
+        ctx.font = "700 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+        ctx.fillText("Sensor lost the Sun → hunting", barX, barY + 52);
+      }
+    }
+
+    // Footer hint line
+    ctx.fillStyle = "rgba(233,238,252,0.55)";
+    ctx.font = "600 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    const label = (weather === "sunny") ? "Sunny conditions" : (weather === "cloudy") ? "Cloudy (sensor instability)" : "Dusty (dirty sensor)";
+    ctx.fillText(label, 18, H - 10);
+  }
+
+  function tick(ts){
+    const dt = Math.min(0.05, (ts - lastTs) / 1000);
+    lastTs = ts;
+
+    if(running){
+      const dayRate = 1 / Math.max(4, secondsPerDay);
+      t += dt * dayRate;
+      if(t > 1) t -= 1;
+    }
+
+    draw();
+    requestAnimationFrame(tick);
+  }
+
+  // Events
+  window.addEventListener("resize", () => { resize(); });
+
+  if(weatherSelect){
+    weatherSelect.addEventListener("change", (e) => setWeather(e.target.value));
+  }
+  if(speedRange){
+    speedRange.addEventListener("input", (e) => setSpeed(e.target.value));
+    setSpeed(speedRange.value);
+  }
+  if(togglePlay){
+    togglePlay.addEventListener("click", () => {
+      running = !running;
+      togglePlay.textContent = running ? "Pause" : "Play";
+    });
+  }
+  if(resetDemo){
+    resetDemo.addEventListener("click", () => reset());
+  }
+
+  // Init
+  resize();
+  draw();
+  requestAnimationFrame((ts)=>{ lastTs = ts; tick(ts); });
+})();
+
+/* ============================
+   Web Calculator (Sun Position)
+   Uses NOAA-style equations
+   + Chart.js altitude curve
+   ============================ */
+
+(function initWebCalculator(){
+  const calcBtn = document.getElementById("calcBtn");
+  const fillBtn = document.getElementById("calcFillBtn");
+
+  const dateInput = document.getElementById("dateInput");
+  const timeInput = document.getElementById("timeInput");
+  const latInput  = document.getElementById("latInput");
+  const lonInput  = document.getElementById("lonInput");
+  const tzInput   = document.getElementById("tzInput");
+
+  const resultEl  = document.getElementById("result");
+  const altCanvas = document.getElementById("altChartCanvas");
+
+  if(!calcBtn || !resultEl || !altCanvas) return;
+
+  const degToRad = (deg) => deg * Math.PI / 180;
+  const radToDeg = (rad) => rad * 180 / Math.PI;
+
+  function dayOfYearUTC(d){
+    const start = Date.UTC(d.getUTCFullYear(), 0, 0);
+    const now = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    return Math.floor((now - start) / 86400000);
+  }
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+
+  function computeFor(date, lat, lon, tz){
+    const day = dayOfYearUTC(date);
+    const hour = date.getHours();
+    const minute = date.getMinutes();
+    const second = date.getSeconds();
+
+    // fractional year (gamma)
+    const gamma = 2 * Math.PI / 365 * (day - 1 + (hour - 12) / 24);
+
+    // equation of time (minutes)
+    const eqtime = 229.18 * (
+      0.000075
+      + 0.001868 * Math.cos(gamma)
+      - 0.032077 * Math.sin(gamma)
+      - 0.014615 * Math.cos(2*gamma)
+      - 0.040849 * Math.sin(2*gamma)
     );
-    io.observe(el);
+
+    // declination (radians)
+    const decl = 0.006918
+      - 0.399912 * Math.cos(gamma)
+      + 0.070257 * Math.sin(gamma)
+      - 0.006758 * Math.cos(2*gamma)
+      + 0.000907 * Math.sin(2*gamma)
+      - 0.002697 * Math.cos(3*gamma)
+      + 0.00148  * Math.sin(3*gamma);
+
+    const timeOffset = eqtime + 4 * lon - 60 * tz; // minutes
+    const tst = hour * 60 + minute + second / 60 + timeOffset; // minutes
+    const ha = (tst / 4) - 180; // degrees
+
+    const haRad = degToRad(ha);
+    const latRad = degToRad(lat);
+
+    const cosZen = Math.sin(latRad) * Math.sin(decl)
+      + Math.cos(latRad) * Math.cos(decl) * Math.cos(haRad);
+
+    const cosZenClamped = Math.max(-1, Math.min(1, cosZen));
+    const zenith = radToDeg(Math.acos(cosZenClamped));
+    const altitude = 90 - zenith;
+
+    // azimuth (degrees, 0..360)
+    const zenRad = Math.acos(cosZenClamped);
+    const sinZen = Math.sin(zenRad);
+
+    let azimuth = NaN;
+    if(sinZen > 1e-8){
+      const sinAz = -(Math.sin(latRad) * Math.cos(decl) - Math.sin(decl) * Math.cos(latRad) * Math.cos(haRad)) / sinZen;
+      const cosAz = (Math.sin(decl) - Math.sin(latRad) * cosZenClamped) / (Math.cos(latRad) * sinZen);
+      azimuth = radToDeg(Math.atan2(sinAz, cosAz));
+      if(azimuth < 0) azimuth += 360;
+    } else {
+      azimuth = 0;
+    }
+
+    // Solar noon (local clock minutes) — simple form from your code
+    const solarNoonMin = 720 - 4 * lon - eqtime;
+    const snoonH = Math.floor(solarNoonMin / 60);
+    const snoonM = Math.floor(solarNoonMin % 60);
+
+    return {
+      day,
+      gamma,
+      eqtime,
+      decl,
+      timeOffset,
+      tst,
+      ha,
+      zenith,
+      azimuth,
+      altitude,
+      solarNoon: `${pad2(snoonH)}:${pad2(snoonM)}`
+    };
   }
 
-  // ---------- 1) Climate chart (Chart.js) ----------
-  function initClimateChart() {
-    const canvas = $("#tempChartCanvas");
-    if (!canvas || !window.Chart) return;
+  let altitudeChart = null;
 
-    // demo data (lightweight)
-    const years = [];
-    const vals = [];
-    for (let y = 2000; y <= 2025; y++) {
-      years.push(String(y));
-      // gentle upward demo trend
-      vals.push((0.25 + (y - 2000) * 0.02 + (Math.sin((y - 2000) * 0.7) * 0.03)).toFixed(2));
+  function renderChart(lat, lon, tz, dayOfYear){
+    const labels = [];
+    const data = [];
+
+    // 0..24 with 15-min step
+    for(let h = 0; h <= 24; h += 0.25){
+      const hh = Math.floor(h);
+      const mm = Math.round((h - hh) * 60);
+
+      labels.push(`${pad2(hh)}:${pad2(mm)}`);
+
+      // build a local Date just for hour sweep (today’s date is fine because we use dayOfYear explicitly via UTC date)
+      // we’ll create a dummy date and then overwrite the UTC day-of-year logic by constructing a real date from that doy:
+      // simplest: compute decl/eqtime with a synthetic date at that hour using the current selected date in outer scope.
+      // So here we will just call computeFor using a Date derived from the selected date at hour h.
+      // We'll pass a "baseDate" set by calc() below.
+      // This function will be called with baseDate set globally.
     }
 
-    const ctx = canvas.getContext("2d");
-    // Destroy old chart if hot-reload
-    if (canvas.__chart) {
-      try { canvas.__chart.destroy(); } catch {}
+    // We need base date from inputs
+    const dateStr = dateInput.value;
+    if(!dateStr) return;
+
+    // Use noon time to avoid timezone drift when building date from string
+    const base = new Date(dateStr + "T12:00:00");
+
+    const points = [];
+    for(let h = 0; h <= 24; h += 0.25){
+      const hh = Math.floor(h);
+      const mm = Math.round((h - hh) * 60);
+      const d = new Date(dateStr + `T${pad2(hh)}:${pad2(mm)}:00`);
+
+      const res = computeFor(d, lat, lon, tz);
+      points.push(res.altitude);
     }
 
-    canvas.__chart = new Chart(ctx, {
+    // rebuild labels to match points
+    labels.length = 0;
+    for(let h = 0; h <= 24; h += 0.25){
+      const hh = Math.floor(h);
+      const mm = Math.round((h - hh) * 60);
+      labels.push(`${pad2(hh)}:${pad2(mm)}`);
+    }
+
+    const ctx = altCanvas.getContext("2d");
+
+    if(altitudeChart) altitudeChart.destroy();
+
+    altitudeChart = new Chart(ctx, {
       type: "line",
       data: {
-        labels: years,
+        labels,
         datasets: [{
-          label: "Global temperature anomaly (demo)",
-          data: vals,
+          label: "Solar Altitude (°)",
+          data: points,
           tension: 0.25,
           pointRadius: 0,
           borderWidth: 2
@@ -87,620 +1028,85 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        animation: false, // important for mobile
-        plugins: { legend: { display: true } },
         scales: {
-          x: { ticks: { maxTicksLimit: 7 } },
-          y: { title: { display: true, text: "°C" } }
+          y: {
+            suggestedMin: -10,
+            suggestedMax: 90,
+            ticks: { color: "rgba(233,238,252,0.75)" },
+            grid: { color: "rgba(255,255,255,0.08)" }
+          },
+          x: {
+            ticks: {
+              color: "rgba(233,238,252,0.55)",
+              maxTicksLimit: 9
+            },
+            grid: { color: "rgba(255,255,255,0.06)" }
+          }
+        },
+        plugins: {
+          legend: {
+            labels: { color: "rgba(233,238,252,0.75)" }
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `Altitude: ${ctx.parsed.y.toFixed(2)}°`
+            }
+          }
         }
       }
     });
   }
 
-  // ---------- 2) Comparison bars ----------
-  function initBars() {
-    const energyEl = $("#energyBars");
-    const costEl = $("#costBars");
-    if (!energyEl && !costEl) return;
+  function calc(){
+    const dateStr = dateInput.value;
+    const timeStr = timeInput.value;
 
-    function renderBars(el, items) {
-      if (!el) return;
-      el.innerHTML = "";
-      const max = Math.max(...items.map(i => i.v));
-      items.forEach((i) => {
-        const row = document.createElement("div");
-        row.className = "barRow";
-        const label = document.createElement("div");
-        label.className = "barLabel";
-        label.textContent = i.name;
-        const track = document.createElement("div");
-        track.className = "barTrack";
-        const bar = document.createElement("div");
-        bar.className = "barFill";
-        bar.style.width = `${(i.v / max) * 100}%`;
-        const val = document.createElement("div");
-        val.className = "barVal";
-        val.textContent = i.txt;
-        track.appendChild(bar);
-        row.appendChild(label);
-        row.appendChild(track);
-        row.appendChild(val);
-        el.appendChild(row);
-      });
+    const lat = parseFloat(latInput.value);
+    const lon = parseFloat(lonInput.value);
+    const tz  = parseFloat(tzInput.value);
+
+    if(!dateStr || !timeStr || !Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(tz)){
+      resultEl.textContent = "Please fill all inputs (date, time, latitude, longitude, timezone).";
+      return;
     }
 
-    renderBars(energyEl, [
-      { name: "Fixed PV", v: 1350, txt: "1350" },
-      { name: "Sensor tracker", v: 1600, txt: "1600" },
-      { name: "SUNFLOWER", v: 1700, txt: "1700" }
-    ]);
+    const date = new Date(dateStr + "T" + timeStr + ":00");
 
-    renderBars(costEl, [
-      { name: "Fixed PV", v: 1250, txt: "1200–1250" },
-      { name: "Sensor tracker", v: 1500, txt: "1400–1500" },
-      { name: "SUNFLOWER", v: 1450, txt: "1350–1450" }
-    ]);
+    const r = computeFor(date, lat, lon, tz);
+
+    resultEl.textContent =
+      `Equation of Time: ${r.eqtime.toFixed(2)} min\n` +
+      `Declination: ${radToDeg(r.decl).toFixed(2)}°\n` +
+      `Time correction: ${r.timeOffset.toFixed(2)} min\n` +
+      `True Solar Time: ${r.tst.toFixed(2)} min\n` +
+      `Hour angle: ${r.ha.toFixed(2)}°\n` +
+      `Zenith angle: ${r.zenith.toFixed(2)}°\n` +
+      `Solar azimuth: ${r.azimuth.toFixed(2)}°\n` +
+      `Solar altitude: ${r.altitude.toFixed(2)}°\n` +
+      `Solar noon: ${r.solarNoon}`;
+
+    renderChart(lat, lon, tz, r.day);
   }
 
-  // ---------- 3) Formulas panel (content can be expanded later) ----------
-  function initFormulaPanel() {
-    const panel = $("#formulaPanel");
-    const title = $("#panelTitle");
-    const body = $("#panelBody");
-    const closeBtn = $("#panelClose");
-    const tiles = $$(".formulaTile");
-
-    if (!panel || !title || !body || tiles.length === 0) return;
-
-    const CONTENT = {
-      gamma: {
-        t: "γ — Fractional year",
-        d: "Definition: a normalized angle used to approximate yearly solar changes.",
-        p: "Idea: map day-of-year and time into a single phase angle.",
-        f: "\\[\\gamma = \\frac{2\\pi}{365}\\left(n - 1 + \\frac{h-12}{24}\\right)\\]"
-      },
-      et: {
-        t: "ET — Equation of Time",
-        d: "Definition: difference between solar time and clock time due to Earth’s orbit and tilt.",
-        p: "Derived from a harmonic approximation using γ.",
-        f: "\\[ET\\,(min)=229.18\\,(0.000075+0.001868\\cos\\gamma-0.032077\\sin\\gamma-0.014615\\cos2\\gamma-0.040849\\sin2\\gamma)\\]"
-      },
-      delta: {
-        t: "δ — Solar declination",
-        d: "Definition: angle between solar rays and Earth’s equatorial plane.",
-        p: "Approximated as a Fourier series in γ.",
-        f: "\\[\\delta=0.006918-0.399912\\cos\\gamma+0.070257\\sin\\gamma-0.006758\\cos2\\gamma+0.000907\\sin2\\gamma-0.002697\\cos3\\gamma+0.00148\\sin3\\gamma\\]"
-      },
-      tf: {
-        t: "t_f — Time correction",
-        d: "Definition: correction (minutes) applied to convert local clock time to true solar time.",
-        p: "Combines equation of time, longitude, and time zone.",
-        f: "\\[t_f = ET + 4\\,\\lambda - 60\\,TZ\\]"
-      },
-      tst: {
-        t: "t_st — True Solar Time",
-        d: "Definition: solar time in minutes from local solar midnight.",
-        p: "Clock minutes + time correction.",
-        f: "\\[t_{st} = 60h + m + s/60 + t_f\\]"
-      },
-      ha: {
-        t: "h_a — Hour angle",
-        d: "Definition: angular measure of time relative to solar noon.",
-        p: "Each 4 minutes corresponds to 1°.",
-        f: "\\[h_a = \\frac{t_{st}}{4} - 180^\\circ\\]"
-      },
-      phi: {
-        t: "φ — Zenith angle",
-        d: "Definition: angle between vertical and the Sun direction.",
-        p: "From spherical trigonometry of the local sky dome.",
-        f: "\\[\\cos\\varphi=\\sin\\phi_{lat}\\sin\\delta+\\cos\\phi_{lat}\\cos\\delta\\cos h_a\\]"
-      },
-      theta: {
-        t: "θ — Azimuth",
-        d: "Definition: compass direction of the Sun projection on the horizon.",
-        p: "Computed from hour angle, latitude, and declination.",
-        f: "\\[\\theta = \\operatorname{atan2}(\\sin\\theta_s,\\cos\\theta_s)\\quad\\text{(normalized to }0..360^\\circ\\text{)}\\]"
-      },
-      sr: {
-        t: "S_r,t — Sunrise & Sunset",
-        d: "Definition: times when the Sun crosses the horizon.",
-        p: "Solve for hour angle at a chosen zenith (≈ 90.833° for refraction).",
-        f: "\\[\\cos h_{sr}=\\frac{\\cos Z - \\sin\\phi_{lat}\\sin\\delta}{\\cos\\phi_{lat}\\cos\\delta}\\]"
-      },
-      snoon: {
-        t: "S_noon — Solar noon",
-        d: "Definition: time when Sun is highest (hour angle = 0).",
-        p: "From longitude and equation of time.",
-        f: "\\[S_{noon}(min)=720-4\\lambda-ET\\]"
-      },
-      dalpha: {
-        t: "Δα — Angular error",
-        d: "Definition: angular distance between Sun direction and panel normal.",
-        p: "Spherical trigonometry between two sky directions.",
-        f: "\\[\\Delta\\alpha=\\arccos\\left(\\sin h_1\\sin h_2+\\cos h_1\\cos h_2\\cos(A_1-A_2)\\right)\\]"
-      }
-    };
-
-    function openFormula(key) {
-      const c = CONTENT[key];
-      if (!c) return;
-      title.textContent = c.t;
-      body.innerHTML = `
-        <div class="panelSection"><h4>Definition</h4><p>${safeText(c.d)}</p></div>
-        <div class="panelSection"><h4>Derivation / Idea</h4><p>${safeText(c.p)}</p></div>
-        <div class="panelSection"><h4>Final equation</h4>${c.f}</div>
-      `;
-      panel.classList.remove("hidden");
-      if (window.MathJax?.typesetPromise) window.MathJax.typesetPromise([body]).catch(() => {});
-    }
-
-    function close() {
-      panel.classList.add("hidden");
-    }
-
-    tiles.forEach((btn) => {
-      btn.addEventListener("click", () => openFormula(btn.dataset.formula));
-    });
-    closeBtn?.addEventListener("click", close);
-    panel.addEventListener("click", (e) => {
-      if (e.target === panel) close();
-    });
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") close();
-    });
-  }
-
-  // ---------- 4) Tracking demo (optimized) ----------
-  function initTrackingDemo() {
-    const canvas = $("#trackerDemo");
-    if (!canvas) return;
-
-    // Respect reduced motion: show static frame
-    const reduced = prefersReduced();
-
-    let { ctx, w, h } = setupHiDPICanvas(canvas);
-
-    const weatherSelect = $("#weatherSelect");
-    const speedRange = $("#speedRange");
-    const speedVal = $("#speedVal");
-    const togglePlay = $("#togglePlay");
-    const resetDemo = $("#resetDemo");
-
-    let running = !reduced;
-    let visible = true;
-    let t = 0;           // 0..1 "day progress"
-    let last = 0;
-    let fpsCap = isMobile() ? 30 : 60;
-    let frameInterval = 1000 / fpsCap;
-
-    let weather = (weatherSelect?.value) || "sunny";
-    let daySeconds = Number(speedRange?.value || 12); // seconds per full day
-
-    function readControls() {
-      if (weatherSelect) weather = weatherSelect.value;
-      if (speedRange) daySeconds = Number(speedRange.value || 12);
-      if (speedVal) speedVal.textContent = String(daySeconds);
-    }
-
-    function reset() {
-      t = 0;
-    }
-
-    // Basic sky + sun trajectory
-    function sunPos(tt) {
-      // tt: 0..1 maps sunrise->sunset across top arc
-      // angle from -150deg to -30deg for visual arc (left to right)
-      const a = (-150 + 120 * tt) * Math.PI / 180;
-      const cx = w * 0.5;
-      const cy = h * 0.55;
-      const rx = w * 0.38;
-      const ry = h * 0.38;
-      return { x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) };
-    }
-
-    function drawBackground() {
-      // lightweight background (no heavy gradients per frame)
-      ctx.clearRect(0, 0, w, h);
-
-      // sky
-      ctx.fillStyle = "rgba(6,14,28,1)";
-      ctx.fillRect(0, 0, w, h);
-
-      // subtle vignette (cheap)
-      ctx.fillStyle = "rgba(0,0,0,0.25)";
-      ctx.fillRect(0, 0, w, h);
-
-      // clouds/dust overlay based on weather
-      if (weather === "cloudy") {
-        ctx.fillStyle = "rgba(180,190,210,0.10)";
-        for (let i = 0; i < 3; i++) {
-          ctx.beginPath();
-          const x = w * (0.25 + i * 0.28);
-          const y = h * 0.35;
-          ctx.ellipse(x, y, w * 0.18, h * 0.13, 0, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      } else if (weather === "dusty") {
-        ctx.fillStyle = "rgba(200,170,120,0.08)";
-        ctx.fillRect(0, 0, w, h);
-      }
-
-      // ground
-      ctx.fillStyle = "rgba(8,18,36,1)";
-      ctx.fillRect(0, h * 0.72, w, h * 0.28);
-    }
-
-    function drawSun(p) {
-      // glow cheap: two circles
-      ctx.beginPath();
-      ctx.fillStyle = "rgba(255,220,140,0.18)";
-      ctx.arc(p.x, p.y, 22, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.fillStyle = "rgba(255,210,120,0.95)";
-      ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    function drawPanel(x, y, rot, label, statusColor, statusText) {
-      // mount
-      ctx.strokeStyle = "rgba(255,255,255,0.12)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x, y + 38);
-      ctx.stroke();
-
-      // panel body
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(rot);
-      const pw = 110, ph = 44;
-      ctx.fillStyle = "rgba(40,70,120,0.35)";
-      ctx.strokeStyle = "rgba(180,220,255,0.18)";
-      ctx.lineWidth = 2;
-      roundRect(ctx, -pw / 2, -ph / 2, pw, ph, 8);
-      ctx.fill(); ctx.stroke();
-
-      // simple grid
-      ctx.strokeStyle = "rgba(180,220,255,0.10)";
-      ctx.lineWidth = 1;
-      for (let i = -pw/2 + 10; i < pw/2; i += 14) {
-        ctx.beginPath();
-        ctx.moveTo(i, -ph/2 + 6);
-        ctx.lineTo(i, ph/2 - 6);
-        ctx.stroke();
-      }
-      ctx.restore();
-
-      // label
-      ctx.fillStyle = "rgba(230,240,255,0.9)";
-      ctx.font = "12px system-ui, -apple-system, Segoe UI, Arial";
-      ctx.fillText(label, x - 60, y + 72);
-
-      // status
-      ctx.fillStyle = statusColor;
-      ctx.fillRect(x - 60, y + 82, 10, 10);
-      ctx.fillStyle = "rgba(230,240,255,0.75)";
-      ctx.fillText(statusText, x - 44, y + 92);
-    }
-
-    function roundRect(ctx2, x, y, w2, h2, r) {
-      const rr = Math.min(r, w2 / 2, h2 / 2);
-      ctx2.beginPath();
-      ctx2.moveTo(x + rr, y);
-      ctx2.arcTo(x + w2, y, x + w2, y + h2, rr);
-      ctx2.arcTo(x + w2, y + h2, x, y + h2, rr);
-      ctx2.arcTo(x, y + h2, x, y, rr);
-      ctx2.arcTo(x, y, x + w2, y, rr);
-      ctx2.closePath();
-    }
-
-    function panelRotationTowardsSun(panelX, panelY, sunX, sunY) {
-      // rotate panel normal towards sun direction (visual only)
-      const dx = sunX - panelX;
-      const dy = sunY - panelY;
-      const ang = Math.atan2(dy, dx);
-      // panel should face sun; subtract 90° to align rectangle look
-      return ang;
-    }
-
-    function computeTracking(tt) {
-      const sun = sunPos(tt);
-
-      // Fixed panel: set to a morning-optimized fixed angle (constant)
-      const fixedRot = (-55) * Math.PI / 180;
-
-      // Sensor tracker: follows sun ONLY if weather is sunny; otherwise "loses" (stops updating)
-      let sensorRot;
-      if (weather === "sunny") {
-        sensorRot = panelRotationTowardsSun(w * 0.5, h * 0.80, sun.x, sun.y);
-      } else if (weather === "cloudy") {
-        // intermittent loss: follows until mid-day then drifts
-        if (tt < 0.45) sensorRot = panelRotationTowardsSun(w * 0.5, h * 0.80, sun.x, sun.y);
-        else sensorRot = (-35) * Math.PI / 180;
-      } else {
-        // dusty: dirty sensor loses earlier
-        if (tt < 0.30) sensorRot = panelRotationTowardsSun(w * 0.5, h * 0.80, sun.x, sun.y);
-        else sensorRot = (-20) * Math.PI / 180;
-      }
-
-      // SUNFLOWER: always follows sun
-      const algoRot = panelRotationTowardsSun(w * 0.8, h * 0.80, sun.x, sun.y);
-
-      return { sun, fixedRot, sensorRot, algoRot };
-    }
-
-    function draw(tt) {
-      drawBackground();
-      const { sun, fixedRot, sensorRot, algoRot } = computeTracking(tt);
-      drawSun(sun);
-
-      // positions for three systems
-      const x1 = w * 0.18, x2 = w * 0.50, x3 = w * 0.82;
-      const y = h * 0.84;
-
-      // statuses
-      const fixedStatus = tt > 0.55 ? ["rgba(255,110,110,0.9)", "Low capture"] : ["rgba(110,255,160,0.9)", "OK"];
-      const sensorOk = (weather === "sunny") || (weather === "cloudy" && tt < 0.45) || (weather === "dusty" && tt < 0.30);
-      const sensorStatus = sensorOk ? ["rgba(110,255,160,0.9)", "Tracking OK"] : ["rgba(255,200,110,0.9)", "Lost (sensor)"];
-      const algoStatus = ["rgba(110,255,160,0.9)", "Stable tracking"];
-
-      drawPanel(x1, y, fixedRot, "Fixed Panel", fixedStatus[0], fixedStatus[1]);
-      drawPanel(x2, y, sensorRot, "Sensor Tracker", sensorStatus[0], sensorStatus[1]);
-      drawPanel(x3, y, algoRot, "SUNFLOWER", algoStatus[0], algoStatus[1]);
-
-      // top caption
-      ctx.fillStyle = "rgba(230,240,255,0.9)";
-      ctx.font = "14px system-ui, -apple-system, Segoe UI, Arial";
-      const hh = Math.floor(tt * 24);
-      const mm = Math.floor((tt * 24 - hh) * 60);
-      const timeStr = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
-      ctx.fillText(`Day simulation — ${timeStr}`, 16, 22);
-
-      // weather label
-      ctx.fillStyle = "rgba(230,240,255,0.65)";
-      ctx.font = "12px system-ui, -apple-system, Segoe UI, Arial";
-      ctx.fillText(`Weather: ${weather}`, 16, 40);
-    }
-
-    function tick(ts) {
-      if (!last) last = ts;
-      const dt = ts - last;
-
-      if (running && visible && dt >= frameInterval) {
-        last = ts;
-        // speed: daySeconds seconds for full cycle
-        const step = dt / (daySeconds * 1000);
-        t = (t + step) % 1;
-        draw(t);
-      } else if (!running || !visible) {
-        // still draw once so it doesn't go blank
-        draw(t);
-        last = ts;
-      }
-
-      requestAnimationFrame(tick);
-    }
-
-    // controls
-    weatherSelect?.addEventListener("change", () => { readControls(); });
-    speedRange?.addEventListener("input", () => { readControls(); });
-    togglePlay?.addEventListener("click", () => {
-      running = !running;
-      togglePlay.textContent = running ? "Pause" : "Play";
-    });
-    resetDemo?.addEventListener("click", () => reset());
-
-    // visibility pause
-    observeVisibility(canvas, (v) => { visible = v; });
-
-    // resize
-    const onResize = () => {
-      ({ ctx, w, h } = setupHiDPICanvas(canvas));
-      draw(t);
-    };
-    window.addEventListener("resize", () => {
-      // small debounce
-      clearTimeout(window.__demoResizeT);
-      window.__demoResizeT = setTimeout(onResize, 120);
-    });
-
-    readControls();
-    draw(t);
-    requestAnimationFrame(tick);
-  }
-
-  // ---------- 5) Web calculator (Sun position) ----------
-  function initCalculator() {
-    // IDs can be yours; this supports both old and new naming patterns
-    const dateInput = $("#dateInput") || $("#calcDate");
-    const timeInput = $("#timeInput") || $("#calcTime");
-    const latInput = $("#latInput") || $("#calcLat");
-    const lonInput = $("#lonInput") || $("#calcLon");
-    const tzInput  = $("#tzInput")  || $("#calcTz");
-    const out      = $("#result")   || $("#calcResult");
-    const canvas   = $("#chart")    || $("#altitudeCanvas");
-    const btn      = $("#calcBtn")  || $("#computeBtn") || $("#calcCompute");
-    const demoBtn  = $("#useDemo")  || $("#useUKDemo")  || $("#useUstDemo");
-
-    // If calculator block not present — skip
-    if (!dateInput || !timeInput || !latInput || !lonInput || !tzInput || !out || !canvas) return;
-
-    const degToRad = (deg) => deg * Math.PI / 180;
-    const radToDeg = (rad) => rad * 180 / Math.PI;
-
-    function dayOfYearUTC(d) {
-      const start = Date.UTC(d.getUTCFullYear(), 0, 0);
-      const now = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-      return Math.floor((now - start) / 86400000);
-    }
-
-    function compute(date, lat, lon, tz) {
-      const n = dayOfYearUTC(date);
-      const hour = date.getHours();
-      const minute = date.getMinutes();
-      const second = date.getSeconds();
-
-      const gamma = 2 * Math.PI / 365 * (n - 1 + (hour - 12) / 24);
-
-      const eqtime = 229.18 * (
-        0.000075 + 0.001868 * Math.cos(gamma) - 0.032077 * Math.sin(gamma)
-        - 0.014615 * Math.cos(2 * gamma) - 0.040849 * Math.sin(2 * gamma)
-      );
-
-      const decl = 0.006918 - 0.399912 * Math.cos(gamma) + 0.070257 * Math.sin(gamma)
-        - 0.006758 * Math.cos(2 * gamma) + 0.000907 * Math.sin(2 * gamma)
-        - 0.002697 * Math.cos(3 * gamma) + 0.00148 * Math.sin(3 * gamma);
-
-      const timeOffset = eqtime + 4 * lon - 60 * tz;
-      const tst = hour * 60 + minute + second / 60 + timeOffset;
-      const ha = (tst / 4) - 180;
-
-      const haRad = degToRad(ha);
-      const latRad = degToRad(lat);
-
-      const cosZenith = Math.sin(latRad) * Math.sin(decl) + Math.cos(latRad) * Math.cos(decl) * Math.cos(haRad);
-      const zenith = radToDeg(Math.acos(clamp(cosZenith, -1, 1)));
-      const altitude = 90 - zenith;
-
-      // azimuth
-      const sinAz = -(Math.sin(latRad) * Math.cos(decl) - Math.sin(decl) * Math.cos(latRad) * Math.cos(haRad))
-        / Math.sin(Math.acos(clamp(cosZenith, -1, 1)));
-      const cosAz = (Math.sin(decl) - Math.sin(latRad) * cosZenith)
-        / (Math.cos(latRad) * Math.sin(Math.acos(clamp(cosZenith, -1, 1))));
-
-      let azimuth = radToDeg(Math.atan2(sinAz, cosAz));
-      if (azimuth < 0) azimuth += 360;
-
-      const solarNoonMin = 720 - 4 * lon - eqtime;
-      const snoonH = Math.floor(solarNoonMin / 60);
-      const snoonM = Math.floor(solarNoonMin % 60);
-
-      return {
-        n, gamma, eqtime, decl,
-        timeOffset, tst, ha,
-        zenith, azimuth, altitude,
-        solarNoon: `${String(snoonH).padStart(2, "0")}:${String(snoonM).padStart(2, "0")}`
-      };
-    }
-
-    function drawAltitudeChart(lat, lon, tz, date) {
-      const { ctx, w, h } = setupHiDPICanvas(canvas);
-
-      // background
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = "rgba(10,18,36,1)";
-      ctx.fillRect(0, 0, w, h);
-
-      // grid
-      ctx.strokeStyle = "rgba(255,255,255,0.10)";
-      ctx.lineWidth = 1;
-      ctx.font = "12px system-ui, -apple-system, Segoe UI, Arial";
-      ctx.fillStyle = "rgba(255,255,255,0.75)";
-
-      for (let alt = 0; alt <= 90; alt += 30) {
-        const y = h - (alt / 100) * h;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
-        ctx.stroke();
-        ctx.fillText(`${alt}°`, 6, y - 4);
-      }
-
-      for (let hour = 0; hour <= 24; hour += 6) {
-        const x = (hour / 24) * w;
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, h);
-        ctx.stroke();
-        ctx.fillText(`${hour}:00`, x + 4, h - 8);
-      }
-
-      // curve (step 15 min)
-      const points = [];
-      for (let hh = 0; hh <= 24; hh += 0.25) {
-        const d = new Date(date);
-        d.setHours(0, 0, 0, 0);
-        d.setHours(Math.floor(hh), Math.floor((hh % 1) * 60), 0, 0);
-        const res = compute(d, lat, lon, tz);
-        const alt = res.altitude;
-
-        const x = (hh / 24) * w;
-        const y = h - ((alt + 10) / 100) * h; // shift up slightly
-        points.push({ x, y });
-      }
-
-      ctx.beginPath();
-      ctx.strokeStyle = "rgba(120,220,255,0.9)";
-      ctx.lineWidth = 2;
-      for (let i = 0; i < points.length; i++) {
-        const p = points[i];
-        if (i === 0) ctx.moveTo(p.x, p.y);
-        else ctx.lineTo(p.x, p.y);
-      }
-      ctx.stroke();
-    }
-
-    function run() {
-      const dateStr = dateInput.value;
-      const timeStr = timeInput.value;
-      const lat = parseFloat(latInput.value);
-      const lon = parseFloat(lonInput.value);
-      const tz = parseFloat(tzInput.value);
-
-      if (!dateStr || !timeStr || !Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(tz)) {
-        out.textContent = "Please fill Date, Time, Latitude, Longitude, and Time zone.";
-        return;
-      }
-
-      const date = new Date(`${dateStr}T${timeStr}:00`);
-      const r = compute(date, lat, lon, tz);
-
-      out.textContent =
-        `Equation of Time: ${r.eqtime.toFixed(2)} min\n` +
-        `Declination: ${radToDeg(r.decl).toFixed(2)}°\n` +
-        `Time correction: ${r.timeOffset.toFixed(2)} min\n` +
-        `True Solar Time: ${r.tst.toFixed(2)} min\n` +
-        `Hour angle: ${r.ha.toFixed(2)}°\n` +
-        `Zenith angle: ${r.zenith.toFixed(2)}°\n` +
-        `Azimuth: ${r.azimuth.toFixed(2)}°\n` +
-        `Solar altitude: ${r.altitude.toFixed(2)}°\n` +
-        `Solar noon: ${r.solarNoon}`;
-
-      drawAltitudeChart(lat, lon, tz, date);
-    }
-
-    // default demo values (Ust-Kamenogorsk)
-    function setDemo() {
+  function fillDemo(){
+    // Ust-Kamenogorsk-ish demo values (you can change)
+    if(!dateInput.value){
       const now = new Date();
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth() + 1).padStart(2, "0");
-      const dd = String(now.getDate()).padStart(2, "0");
-      dateInput.value = `${yyyy}-${mm}-${dd}`;
-      timeInput.value = "12:00";
-      latInput.value = "49.946";
-      lonInput.value = "82.604";
-      tzInput.value = "5";
-      run();
+      dateInput.value = `${now.getFullYear()}-${pad2(now.getMonth()+1)}-${pad2(now.getDate())}`;
     }
-
-    btn?.addEventListener("click", run);
-    demoBtn?.addEventListener("click", setDemo);
-
-    // Render once with demo if empty
-    if (!dateInput.value || !timeInput.value) setDemo();
-    else run();
+    if(!timeInput.value) timeInput.value = "12:00";
+    latInput.value = "49.946";
+    lonInput.value = "82.604";
+    tzInput.value = "5";
+    calc();
   }
 
-  // ---------- boot ----------
-  document.addEventListener("DOMContentLoaded", () => {
-    initClimateChart();
-    initBars();
-    initFormulaPanel();
-    initTrackingDemo();
-    initCalculator();
-  });
+  calcBtn.addEventListener("click", calc);
+  fillBtn.addEventListener("click", fillDemo);
 
+  // Auto-calc once when section exists and user already has values
+  // (won't spam if empty)
+  setTimeout(() => {
+    if(dateInput.value && timeInput.value && latInput.value && lonInput.value && tzInput.value) calc();
+  }, 300);
 })();
