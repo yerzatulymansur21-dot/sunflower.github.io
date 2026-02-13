@@ -687,12 +687,22 @@
   requestAnimationFrame((ts)=>{ lastTs = ts; tick(ts); });
 })();
 
-   // ============================
-  // 5) WEB CALCULATOR + ALT CHART
-  // ============================
-  function initWebCalculator(){
-    const calcBtn = document.getElementById("calcBtn");
-    const fillBtn = document.getElementById("calcFillBtn");
+/* ============================
+   Web Calculator (Sun Position) — FIXED
+   - Works even if Chart.js is missing/late
+   - Correct solar noon includes timezone
+   ============================ */
+(function initWebCalculator(){
+  // Run after DOM is ready (safe even if script is in <head>)
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+
+  function init(){
+    const calcBtn  = document.getElementById("calcBtn");
+    const fillBtn  = document.getElementById("calcFillBtn");
 
     const dateInput = document.getElementById("dateInput");
     const timeInput = document.getElementById("timeInput");
@@ -703,28 +713,33 @@
     const resultEl  = document.getElementById("result");
     const altCanvas = document.getElementById("altChartCanvas");
 
-    if(!calcBtn || !resultEl || !altCanvas) return;
-    if(typeof window.Chart === "undefined") return;
+    if(!calcBtn || !dateInput || !timeInput || !latInput || !lonInput || !tzInput || !resultEl){
+      return; // calculator section not on page
+    }
 
     const degToRad = (deg) => deg * Math.PI / 180;
     const radToDeg = (rad) => rad * 180 / Math.PI;
 
-    function dayOfYearUTC(d){
-      const start = Date.UTC(d.getUTCFullYear(), 0, 0);
-      const now = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-      return Math.floor((now - start) / 86400000);
+    function dayOfYearLocal(d){
+      // day-of-year in local time (stable for typical use)
+      const start = new Date(d.getFullYear(), 0, 0);
+      const diff = d - start;
+      return Math.floor(diff / 86400000);
     }
 
-    function pad2(n){ return String(n).padStart(2,'0'); }
+    function pad2(n){ return String(n).padStart(2,"0"); }
 
     function computeFor(date, lat, lon, tz){
-      const day = dayOfYearUTC(date);
+      const day = dayOfYearLocal(date);
+
       const hour = date.getHours();
       const minute = date.getMinutes();
       const second = date.getSeconds();
 
+      // fractional year (gamma)
       const gamma = 2 * Math.PI / 365 * (day - 1 + (hour - 12) / 24);
 
+      // equation of time (minutes)
       const eqtime = 229.18 * (
         0.000075
         + 0.001868 * Math.cos(gamma)
@@ -733,6 +748,7 @@
         - 0.040849 * Math.sin(2*gamma)
       );
 
+      // declination (radians)
       const decl = 0.006918
         - 0.399912 * Math.cos(gamma)
         + 0.070257 * Math.sin(gamma)
@@ -741,11 +757,16 @@
         - 0.002697 * Math.cos(3*gamma)
         + 0.00148  * Math.sin(3*gamma);
 
+      // NOAA-style time offset (minutes)
       const timeOffset = eqtime + 4 * lon - 60 * tz;
+
+      // True Solar Time (minutes)
       const tst = hour * 60 + minute + second / 60 + timeOffset;
+
+      // Hour angle (degrees)
       const ha = (tst / 4) - 180;
 
-      const haRad = degToRad(ha);
+      const haRad  = degToRad(ha);
       const latRad = degToRad(lat);
 
       const cosZen = Math.sin(latRad) * Math.sin(decl)
@@ -755,23 +776,29 @@
       const zenith = radToDeg(Math.acos(cosZenClamped));
       const altitude = 90 - zenith;
 
+      // Azimuth (degrees 0..360)
       const zenRad = Math.acos(cosZenClamped);
       const sinZen = Math.sin(zenRad);
 
-      let azimuth = 0;
+      let azimuth;
       if(sinZen > 1e-8){
         const sinAz = -(Math.sin(latRad) * Math.cos(decl) - Math.sin(decl) * Math.cos(latRad) * Math.cos(haRad)) / sinZen;
         const cosAz = (Math.sin(decl) - Math.sin(latRad) * cosZenClamped) / (Math.cos(latRad) * sinZen);
         azimuth = radToDeg(Math.atan2(sinAz, cosAz));
         if(azimuth < 0) azimuth += 360;
+      } else {
+        azimuth = 0;
       }
 
-      const solarNoonMin = 720 - 4 * lon - eqtime;
-      const snoonH = Math.floor(solarNoonMin / 60);
-      const snoonM = Math.floor(solarNoonMin % 60);
+      // Solar noon (LOCAL clock minutes) — include tz
+      // 720 = 12:00 in minutes
+      const solarNoonMin = 720 - 4 * lon - eqtime + tz * 60;
+      const snoonH = Math.floor((solarNoonMin % 1440 + 1440) % 1440 / 60);
+      const snoonM = Math.floor((solarNoonMin % 60 + 60) % 60);
 
       return {
         day,
+        gamma,
         eqtime,
         decl,
         timeOffset,
@@ -787,6 +814,10 @@
     let altitudeChart = null;
 
     function renderChart(lat, lon, tz, dateStr){
+      // If Chart.js is not available, skip chart silently (calculator still works)
+      if(typeof Chart === "undefined") return;
+      if(!altCanvas) return;
+
       const labels = [];
       const points = [];
 
@@ -796,14 +827,16 @@
         labels.push(`${pad2(hh)}:${pad2(mm)}`);
 
         const d = new Date(`${dateStr}T${pad2(hh)}:${pad2(mm)}:00`);
-        const r = computeFor(d, lat, lon, tz);
-        points.push(r.altitude);
+        const res = computeFor(d, lat, lon, tz);
+        points.push(res.altitude);
       }
 
-      const c = altCanvas.getContext("2d");
+      const ctx = altCanvas.getContext("2d");
+      if(!ctx) return;
+
       if(altitudeChart) altitudeChart.destroy();
 
-      altitudeChart = new Chart(c, {
+      altitudeChart = new Chart(ctx, {
         type: "line",
         data: {
           labels,
@@ -832,7 +865,9 @@
           },
           plugins: {
             legend: { labels: { color: "rgba(233,238,252,0.75)" } },
-            tooltip: { callbacks: { label: (ctx) => `Altitude: ${ctx.parsed.y.toFixed(2)}°` } }
+            tooltip: {
+              callbacks: { label: (c) => `Altitude: ${c.parsed.y.toFixed(2)}°` }
+            }
           }
         }
       });
@@ -851,7 +886,12 @@
         return;
       }
 
-      const date = new Date(dateStr + "T" + timeStr + ":00");
+      const date = new Date(`${dateStr}T${timeStr}:00`);
+      if(Number.isNaN(date.getTime())){
+        resultEl.textContent = "Invalid date/time.";
+        return;
+      }
+
       const r = computeFor(date, lat, lon, tz);
 
       resultEl.textContent =
@@ -865,7 +905,12 @@
         `Solar altitude: ${r.altitude.toFixed(2)}°\n` +
         `Solar noon: ${r.solarNoon}`;
 
-      renderChart(lat, lon, tz, dateStr);
+      // draw chart if possible
+      try {
+        renderChart(lat, lon, tz, dateStr);
+      } catch {
+        // never break the calculator if chart fails
+      }
     }
 
     function fillDemo(){
@@ -876,13 +921,14 @@
       if(!timeInput.value) timeInput.value = "12:00";
       latInput.value = "49.946";
       lonInput.value = "82.604";
-      tzInput.value = "5";
+      tzInput.value  = "5";
       calc();
     }
 
     calcBtn.addEventListener("click", calc);
     if(fillBtn) fillBtn.addEventListener("click", fillDemo);
   }
+})();
 
   // ===================================
   // INIT (DOMContentLoaded)
