@@ -7,7 +7,7 @@
 
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- Chart.js (for climate chart + calculator chart) -->
+  <!-- Chart.js (for climate chart + calculator altitude chart) -->
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <!-- MathJax -->
@@ -18,11 +18,13 @@
     };
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+  <!-- Your JS -->
+  <script defer src="site.js"></script>
 </head>
 
 <body>
 
-<!-- HERO -->
 <header class="hero" id="top">
   <div class="heroBg">
     <div class="heroBlob b1"></div>
@@ -33,7 +35,6 @@
 
   <div class="container heroInner">
     <div class="heroContent">
-
       <div class="brand heroBrand">
         <div class="logo">SF</div>
         <div class="brandText">
@@ -62,7 +63,6 @@
         <a class="btn ghost" href="#costs">Prices</a>
         <a class="btn ghost" href="#calculator">Calculator</a>
       </div>
-
     </div>
   </div>
 </header>
@@ -143,8 +143,8 @@
           Below is a demo climate chart. In the next step, we can replace demo values with NASA/NOAA dataset values.
         </p>
 
-        <div class="chartBox chartBoxTall">
-          <canvas id="tempChartCanvas"></canvas>
+        <div class="chartBox">
+          <canvas id="tempChartCanvas" height="140"></canvas>
         </div>
 
         <p class="small">
@@ -173,7 +173,7 @@
     </div>
   </section>
 
-  <!-- DEMO ANIMATION -->
+  <!-- DEMO -->
   <section id="demo" class="card demoCard">
     <div class="demoHead">
       <div>
@@ -292,60 +292,17 @@
     </p>
 
     <div class="formulaGrid11">
-      <button class="formulaTile" data-formula="gamma" type="button">
-        <div class="tileSymbol">γ</div>
-        <div class="tileLabel">Fractional year</div>
-      </button>
-
-      <button class="formulaTile" data-formula="et" type="button">
-        <div class="tileSymbol">ET</div>
-        <div class="tileLabel">Equation of Time</div>
-      </button>
-
-      <button class="formulaTile" data-formula="delta" type="button">
-        <div class="tileSymbol">δ</div>
-        <div class="tileLabel">Solar declination</div>
-      </button>
-
-      <button class="formulaTile" data-formula="tf" type="button">
-        <div class="tileSymbol">t<sub>f</sub></div>
-        <div class="tileLabel">Time correction</div>
-      </button>
-
-      <button class="formulaTile" data-formula="tst" type="button">
-        <div class="tileSymbol">t<sub>st</sub></div>
-        <div class="tileLabel">True Solar Time</div>
-      </button>
-
-      <button class="formulaTile" data-formula="ha" type="button">
-        <div class="tileSymbol">h<sub>a</sub></div>
-        <div class="tileLabel">Hour angle</div>
-      </button>
-
-      <button class="formulaTile" data-formula="phi" type="button">
-        <div class="tileSymbol">φ</div>
-        <div class="tileLabel">Zenith angle</div>
-      </button>
-
-      <button class="formulaTile" data-formula="theta" type="button">
-        <div class="tileSymbol">θ</div>
-        <div class="tileLabel">Azimuth</div>
-      </button>
-
-      <button class="formulaTile" data-formula="sr" type="button">
-        <div class="tileSymbol">S<sub>r,t</sub></div>
-        <div class="tileLabel">Sunrise & Sunset</div>
-      </button>
-
-      <button class="formulaTile" data-formula="snoon" type="button">
-        <div class="tileSymbol">S<sub>noon</sub></div>
-        <div class="tileLabel">Solar noon</div>
-      </button>
-
-      <button class="formulaTile" data-formula="dalpha" type="button">
-        <div class="tileSymbol">Δα</div>
-        <div class="tileLabel">Angular error</div>
-      </button>
+      <button class="formulaTile" data-formula="gamma" type="button"><div class="tileSymbol">γ</div><div class="tileLabel">Fractional year</div></button>
+      <button class="formulaTile" data-formula="et" type="button"><div class="tileSymbol">ET</div><div class="tileLabel">Equation of Time</div></button>
+      <button class="formulaTile" data-formula="delta" type="button"><div class="tileSymbol">δ</div><div class="tileLabel">Solar declination</div></button>
+      <button class="formulaTile" data-formula="tf" type="button"><div class="tileSymbol">t<sub>f</sub></div><div class="tileLabel">Time correction</div></button>
+      <button class="formulaTile" data-formula="tst" type="button"><div class="tileSymbol">t<sub>st</sub></div><div class="tileLabel">True Solar Time</div></button>
+      <button class="formulaTile" data-formula="ha" type="button"><div class="tileSymbol">h<sub>a</sub></div><div class="tileLabel">Hour angle</div></button>
+      <button class="formulaTile" data-formula="phi" type="button"><div class="tileSymbol">φ</div><div class="tileLabel">Zenith angle</div></button>
+      <button class="formulaTile" data-formula="theta" type="button"><div class="tileSymbol">θ</div><div class="tileLabel">Azimuth</div></button>
+      <button class="formulaTile" data-formula="sr" type="button"><div class="tileSymbol">S<sub>r,t</sub></div><div class="tileLabel">Sunrise & Sunset</div></button>
+      <button class="formulaTile" data-formula="snoon" type="button"><div class="tileSymbol">S<sub>noon</sub></div><div class="tileLabel">Solar noon</div></button>
+      <button class="formulaTile" data-formula="dalpha" type="button"><div class="tileSymbol">Δα</div><div class="tileLabel">Angular error</div></button>
     </div>
 
     <div id="formulaPanel" class="formulaPanel hidden">
@@ -357,10 +314,9 @@
     </div>
   </section>
 
-  <!-- ANGULAR ERROR -->
+  <!-- ERROR -->
   <section id="error" class="card">
     <h2>Angular Error Analysis</h2>
-
     <p>
       One of the key performance indicators of a solar tracking system is its
       angular positioning accuracy. In this research, the angular error between
@@ -369,7 +325,6 @@
     </p>
 
     <h3>Angular Error Formula</h3>
-
     \[
     \Delta \theta =
     \arccos\Big(
@@ -378,72 +333,13 @@
     \cos(h_1)\cos(h_2)\cos(A_1 - A_2)
     \Big)
     \]
-
-    <ul class="small">
-      <li>\(h_1\) — solar elevation angle</li>
-      <li>\(A_1\) — solar azimuth angle</li>
-      <li>\(h_2\) — panel elevation angle</li>
-      <li>\(A_2\) — panel azimuth angle</li>
-    </ul>
-
-    <h3>Variation of Solar Coordinates</h3>
-
-    \[
-    h_1 \in [h_{1,\min}, h_{1,\max}], \quad
-    A_1 \in [A_{1,\min}, A_{1,\max}]
-    \]
-
-    \[
-    h_2 = h_1 + \delta_h, \quad
-    A_2 = A_1 + \delta_A
-    \]
-
-    <h3>Input Parameters</h3>
-    <ul>
-      <li>Latitude: 49.946° N</li>
-      <li>Longitude: 82.604° E</li>
-      <li>Date: October 20, 2025</li>
-      <li>Time zone: UTC +5</li>
-    </ul>
-
-    <h3>Motor and Control Accuracy</h3>
-    \[
-    \delta_h \approx \frac{0.9^\circ}{64} \approx 0.014^\circ \approx 0.01^\circ
-    \]
-    \[
-    0.00417^\circ / \text{second}
-    \]
-    \[
-    \delta_A \approx 0.017^\circ \approx 0.02^\circ
-    \]
-
-    <h3>Results</h3>
-    <ul>
-      <li>Minimum error: \( \Delta \theta_{\min} \approx 0.11^\circ \)</li>
-      <li>Maximum error: \( \Delta \theta_{\max} \approx 0.29^\circ \)</li>
-    </ul>
   </section>
 
   <!-- PHYSICS -->
   <section id="physics" class="card">
     <h2>Physics & Energy</h2>
-
-    <h3>Annual energy estimate</h3>
     \[
       E = H \cdot PR
-    \]
-
-    <h3>Tracking gain</h3>
-    \[
-      E_{\text{tracker}} = E_{\text{fixed}}(1+g)
-    \]
-
-    <h3>Example gain</h3>
-    \[
-      \Delta E = 1700 - 1350 = 350\ \text{kWh/kWp·year}
-    \]
-    \[
-      g = \frac{350}{1350} \approx 0.26 = 26\%
     \]
   </section>
 
@@ -451,57 +347,18 @@
   <section id="costs" class="card">
     <h2>Prices & BOM</h2>
     <h3>SUNFLOWER Controller BOM (example)</h3>
-
     <table>
       <thead>
         <tr>
-          <th>Component</th>
-          <th>Qty</th>
-          <th>Typical Price (USD)</th>
-          <th>Amazon Link</th>
+          <th>Component</th><th>Qty</th><th>Typical Price (USD)</th><th>Amazon Link</th>
         </tr>
       </thead>
       <tbody>
-        <tr>
-          <td>ESP32 Microcontroller</td>
-          <td>1</td>
-          <td>10–12</td>
-          <td class="small">
-            <a href="https://www.amazon.com/dp/B0718T232Z" target="_blank" rel="noopener noreferrer">View on Amazon</a>
-          </td>
-        </tr>
-        <tr>
-          <td>RTC Module (DS3231)</td>
-          <td>1</td>
-          <td>10–25</td>
-          <td class="small">
-            <a href="https://www.amazon.com/dp/B00LX4IMPC" target="_blank" rel="noopener noreferrer">View on Amazon</a>
-          </td>
-        </tr>
-        <tr>
-          <td>Motor Driver (L298N)</td>
-          <td>1</td>
-          <td>8–20</td>
-          <td class="small">
-            <a href="https://www.amazon.com/dp/B00CAG0HGS" target="_blank" rel="noopener noreferrer">View on Amazon</a>
-          </td>
-        </tr>
-        <tr>
-          <td>Waterproof Enclosure (IP65)</td>
-          <td>1</td>
-          <td>5–15</td>
-          <td class="small">
-            <a href="https://www.amazon.com/dp/B07Z3S4M6Y" target="_blank" rel="noopener noreferrer">View on Amazon</a>
-          </td>
-        </tr>
-        <tr>
-          <td>Wiring Kit</td>
-          <td>1</td>
-          <td>3–6</td>
-          <td class="small">
-            <a href="https://www.amazon.com/dp/B01EV70C78" target="_blank" rel="noopener noreferrer">View on Amazon</a>
-          </td>
-        </tr>
+        <tr><td>ESP32 Microcontroller</td><td>1</td><td>10–12</td><td class="small"><a href="https://www.amazon.com/dp/B0718T232Z" target="_blank" rel="noopener noreferrer">View on Amazon</a></td></tr>
+        <tr><td>RTC Module (DS3231)</td><td>1</td><td>10–25</td><td class="small"><a href="https://www.amazon.com/dp/B00LX4IMPC" target="_blank" rel="noopener noreferrer">View on Amazon</a></td></tr>
+        <tr><td>Motor Driver (L298N)</td><td>1</td><td>8–20</td><td class="small"><a href="https://www.amazon.com/dp/B00CAG0HGS" target="_blank" rel="noopener noreferrer">View on Amazon</a></td></tr>
+        <tr><td>Waterproof Enclosure (IP65)</td><td>1</td><td>5–15</td><td class="small"><a href="https://www.amazon.com/dp/B07Z3S4M6Y" target="_blank" rel="noopener noreferrer">View on Amazon</a></td></tr>
+        <tr><td>Wiring Kit</td><td>1</td><td>3–6</td><td class="small"><a href="https://www.amazon.com/dp/B01EV70C78" target="_blank" rel="noopener noreferrer">View on Amazon</a></td></tr>
       </tbody>
     </table>
   </section>
@@ -516,28 +373,23 @@
 
     <div class="calcGrid">
       <div class="calcForm">
-        <label class="calcLabel">
-          Date
+        <label class="calcLabel">Date
           <input class="calcInput" type="date" id="dateInput">
         </label>
 
-        <label class="calcLabel">
-          Time (HH:MM)
+        <label class="calcLabel">Time (HH:MM)
           <input class="calcInput" type="time" id="timeInput">
         </label>
 
-        <label class="calcLabel">
-          Latitude (e.g., 49.946)
+        <label class="calcLabel">Latitude (e.g., 49.946)
           <input class="calcInput" type="number" id="latInput" step="0.0001" placeholder="49.946">
         </label>
 
-        <label class="calcLabel">
-          Longitude (e.g., 82.604)
+        <label class="calcLabel">Longitude (e.g., 82.604)
           <input class="calcInput" type="number" id="lonInput" step="0.0001" placeholder="82.604">
         </label>
 
-        <label class="calcLabel">
-          Time zone (UTC, e.g., +5)
+        <label class="calcLabel">Time zone (UTC, e.g., +5)
           <input class="calcInput" type="number" id="tzInput" step="0.5" placeholder="5">
         </label>
 
@@ -556,8 +408,8 @@
         <pre class="calcPre" id="result">—</pre>
 
         <h3 class="calcH3">Solar altitude over the day</h3>
-        <div class="chartBox chartBoxTall">
-          <canvas id="altChartCanvas"></canvas>
+        <div class="chartBox">
+          <canvas id="altChartCanvas" height="170"></canvas>
         </div>
       </div>
     </div>
@@ -571,6 +423,5 @@
   </div>
 </footer>
 
-<script src="site.js" defer></script>
 </body>
 </html>
