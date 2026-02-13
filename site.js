@@ -260,267 +260,92 @@
     if(panel) panel.classList.add("hidden");
   }
 
-  // ============================
-  // 4) TRACKING DEMO (Canvas) — optimized
-  // ============================
-function initTrackerDemo(){
-  // --- find demo root ---
-  const demoSection = document.getElementById("demo") || document.querySelector("#demo, .demoCard");
-  if(!demoSection) return;
+   /* ============================
+   3-System Tracking Demo (FIXED for mobile canvas sizing)
+   ============================ */
+(function initTrackerDemo(){
+  const canvas = document.getElementById("trackerDemo");
+  if(!canvas) return;
 
-  // controls (ids from your html)
   const weatherSelect = document.getElementById("weatherSelect");
   const speedRange = document.getElementById("speedRange");
   const speedVal = document.getElementById("speedVal");
   const togglePlay = document.getElementById("togglePlay");
   const resetDemo = document.getElementById("resetDemo");
 
-  // 1) Try "single canvas" layout
-  let canvasMain = document.getElementById("trackerDemo");
+  const ctx = canvas.getContext("2d", { alpha: false });
 
-  // 2) Try "3 canvas" layout (old template variants)
-  let cFixed  = document.getElementById("fixedCanvas")  || document.getElementById("fixedPanelCanvas");
-  let cSensor = document.getElementById("sensorCanvas") || document.getElementById("sensorTrackerCanvas");
-  let cAlgo   = document.getElementById("algoCanvas")   || document.getElementById("sunflowerCanvas");
+  // Force a stable CSS height so iOS Safari doesn't "auto-stretch" the canvas
+  if(!canvas.style.height) canvas.style.height = "320px";
+  canvas.style.width = "100%";
+  canvas.style.display = "block";
 
-  // 3) If nothing found, create a canvas in the demo wrap
-  if(!canvasMain && !(cFixed && cSensor && cAlgo)){
-    const wrap =
-      demoSection.querySelector(".demoWrap") ||
-      demoSection.querySelector(".demo") ||
-      demoSection.querySelector(".demoContainer") ||
-      demoSection.querySelector(".trackingDemo") ||
-      demoSection.querySelector(".card") ||
-      demoSection;
-
-    canvasMain = document.createElement("canvas");
-    canvasMain.id = "trackerDemo";
-    canvasMain.style.width = "100%";
-    canvasMain.style.display = "block";
-    canvasMain.height = 320;
-    wrap.appendChild(canvasMain);
-  }
-
-  // Decide drawing mode
-  const mode = (cFixed && cSensor && cAlgo) ? "triple" : "single";
-
-  // Canvas contexts
-  const ctxMain = canvasMain ? canvasMain.getContext("2d", { alpha:false }) : null;
-  const ctxF = cFixed  ? cFixed.getContext("2d", { alpha:false }) : null;
-  const ctxS = cSensor ? cSensor.getContext("2d", { alpha:false }) : null;
-  const ctxA = cAlgo   ? cAlgo.getContext("2d", { alpha:false }) : null;
-
-  // --- runtime settings ---
-  const isMobile = matchMedia("(max-width: 900px)").matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const dprCap = isMobile ? 1.5 : 2;
-
+  // State
   let weather = (weatherSelect && weatherSelect.value) || "sunny";
   let secondsPerDay = Number((speedRange && speedRange.value) || 12);
   let running = true;
 
-  // time state
-  let t = 0;                 // 0..1 day
-  let last = performance.now();
+  // normalized day progress 0..1
+  let t = 0;
+  let lastTs = performance.now();
 
-  // sensor behavior
+  // sensor tracker internal states
   let sensorLocked = true;
   let sensorAngle = 0;
-  let huntPhase = 0;
+  let sensorHuntPhase = 0;
 
-  function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
-  function rad(deg){ return deg*Math.PI/180; }
+  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+  function getRect(){
+    // Always use CSS pixel size (works correctly on phones)
+    return canvas.getBoundingClientRect();
+  }
+
+  function resize(){
+    const rect = getRect();
+    const cssW = Math.max(1, rect.width);
+    const cssH = Math.max(1, rect.height);
+
+    // cap DPR for performance (2 is usually enough)
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+    canvas.width  = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+
+    // Make 1 unit in canvas = 1 CSS pixel
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function setWeather(v){
+    weather = v;
+    sensorLocked = true;
+    sensorHuntPhase = 0;
+  }
+
+  function setSpeed(v){
+    secondsPerDay = Number(v);
+    if(speedVal) speedVal.textContent = String(secondsPerDay);
+  }
+
+  function reset(){
+    t = 0;
+    sensorLocked = true;
+    sensorAngle = 0;
+    sensorHuntPhase = 0;
+  }
+
   function sunPos(norm){
-    // smooth half-sine path
     const x = norm;
-    const y = Math.sin(Math.PI * norm);
-    return {x,y};
+    const y = Math.sin(Math.PI * norm); // 0..1..0
+    return { x, y };
   }
 
-  function setupCanvas(c, ctx){
-    if(!c || !ctx) return;
-    const cssW = c.clientWidth || c.parentElement?.clientWidth || 900;
-    const cssH = Number(c.getAttribute("height") || c.height || 320);
-    const dpr = Math.min(dprCap, window.devicePixelRatio || 1);
-
-    c.width  = Math.floor(cssW * dpr);
-    c.height = Math.floor(cssH * dpr);
-    ctx.setTransform(dpr,0,0,dpr,0,0);
+  function smoothStep(a, b, x){
+    const tt = clamp((x - a) / (b - a), 0, 1);
+    return tt * tt * (3 - 2 * tt);
   }
 
-  function resizeAll(){
-    if(mode === "single"){
-      setupCanvas(canvasMain, ctxMain);
-    } else {
-      setupCanvas(cFixed,  ctxF);
-      setupCanvas(cSensor, ctxS);
-      setupCanvas(cAlgo,   ctxA);
-    }
-  }
-
-  function drawOneCard(ctx, W, H, label, status, statusBad, color, panelAngle, sunXn, sunYn, extras){
-    // background
-    ctx.fillStyle = "#060a14";
-    ctx.fillRect(0,0,W,H);
-
-    // soft vignette
-    const vg = ctx.createRadialGradient(W*0.35, H*0.20, 10, W*0.5, H*0.45, Math.max(W,H));
-    vg.addColorStop(0, "rgba(70,120,255,0.14)");
-    vg.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = vg;
-    ctx.fillRect(0,0,W,H);
-
-    // title
-    ctx.fillStyle = "rgba(233,238,252,0.92)";
-    ctx.font = "700 15px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    ctx.fillText(label, 14, 24);
-
-    // status pill
-    const pillText = status;
-    ctx.font = "700 11px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    const pillW = ctx.measureText(pillText).width + 18;
-    const pillX = W - pillW - 12;
-    const pillY = 10;
-
-    ctx.fillStyle = statusBad ? "rgba(255,120,120,0.16)" : "rgba(255,255,255,0.06)";
-    ctx.strokeStyle = statusBad ? "rgba(255,120,120,0.35)" : "rgba(255,255,255,0.10)";
-    roundRect(ctx, pillX, pillY, pillW, 20, 999); ctx.fill(); ctx.stroke();
-
-    ctx.fillStyle = statusBad ? "rgba(255,170,170,0.95)" : "rgba(233,238,252,0.75)";
-    ctx.fillText(pillText, pillX+9, pillY+14);
-
-    // sky box
-    const skyX = 12, skyY = 38, skyW = W-24, skyH = Math.floor(H*0.56);
-    ctx.fillStyle = "rgba(0,0,0,0.22)";
-    ctx.strokeStyle = "rgba(255,255,255,0.10)";
-    roundRect(ctx, skyX, skyY, skyW, skyH, 14); ctx.fill(); ctx.stroke();
-
-    // arc
-    ctx.strokeStyle = "rgba(255,255,255,0.08)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for(let k=0;k<=48;k++){
-      const tt = k/48;
-      const p = sunPos(tt);
-      const px = skyX + p.x * skyW;
-      const py = skyY + (1 - p.y) * (skyH*0.78) + skyH*0.08;
-      if(k===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
-    }
-    ctx.stroke();
-
-    // sun position (actual)
-    const sunPx = skyX + sunXn * skyW;
-    const sunPy = skyY + (1 - sunYn) * (skyH*0.78) + skyH*0.08;
-
-    // glow
-    const g = ctx.createRadialGradient(sunPx, sunPy, 4, sunPx, sunPy, 46);
-    g.addColorStop(0, "rgba(255,220,140,0.28)");
-    g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(sunPx, sunPy, 46, 0, Math.PI*2); ctx.fill();
-
-    ctx.fillStyle = "rgba(255,220,140,0.92)";
-    ctx.beginPath(); ctx.arc(sunPx, sunPy, 6, 0, Math.PI*2); ctx.fill();
-
-    // weather visuals
-    if(extras.cloudy){
-      ctx.save();
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = "rgba(200,220,255,0.10)";
-      for(let c=0;c<(isMobile?2:4);c++){
-        const cx = skyX + ((t*0.6 + c*0.33) % 1) * skyW;
-        const cy = skyY + 26 + c*10;
-        roundRect(ctx, cx-40, cy, 86, 24, 999); ctx.fill();
-        roundRect(ctx, cx-10, cy-14, 56, 22, 999); ctx.fill();
-      }
-      ctx.restore();
-    }
-
-    // ground line
-    const groundY = skyY + skyH + 12;
-    ctx.strokeStyle = "rgba(255,255,255,0.10)";
-    ctx.beginPath(); ctx.moveTo(12, groundY); ctx.lineTo(W-12, groundY); ctx.stroke();
-
-    // stand
-    const baseX = W*0.5;
-    const baseY = groundY + 82;
-
-    ctx.strokeStyle = "rgba(255,255,255,0.18)";
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(baseX, groundY+10); ctx.lineTo(baseX, baseY-10); ctx.stroke();
-
-    // sensor head (only for sensor)
-    if(extras.sensorHead){
-      ctx.fillStyle = extras.dusty ? "rgba(255,170,120,0.65)" : "rgba(233,238,252,0.35)";
-      ctx.beginPath(); ctx.arc(baseX-10, baseY-2, 3, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(baseX+10, baseY-2, 3, 0, Math.PI*2); ctx.fill();
-      if(extras.dusty){
-        ctx.fillStyle = "rgba(255,170,120,0.12)";
-        roundRect(ctx, baseX-34, baseY-30, 68, 18, 8); ctx.fill();
-        ctx.fillStyle = "rgba(255,190,160,0.85)";
-        ctx.font = "700 11px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-        ctx.fillText("DIRTY", baseX-22, baseY-18);
-      }
-    }
-
-    // sun ray
-    if(sunYn > 0.02){
-      ctx.strokeStyle = `rgba(255,220,140,${0.14 + 0.10*extras.irradiance})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(sunPx, sunPy); ctx.lineTo(baseX, baseY); ctx.stroke();
-    }
-
-    // panel
-    ctx.save();
-    ctx.translate(baseX, baseY);
-    ctx.rotate(panelAngle);
-
-    const pw=112, ph=54;
-    ctx.fillStyle = "rgba(15,23,48,0.88)";
-    ctx.strokeStyle = "rgba(255,255,255,0.16)";
-    ctx.lineWidth = 2;
-    roundRect(ctx, -pw/2, -ph/2, pw, ph, 10); ctx.fill(); ctx.stroke();
-
-    // grid
-    ctx.strokeStyle = "rgba(255,255,255,0.08)";
-    ctx.lineWidth = 1;
-    for(let gx=-pw/2+18; gx<pw/2; gx+=18){
-      ctx.beginPath(); ctx.moveTo(gx, -ph/2+6); ctx.lineTo(gx, ph/2-6); ctx.stroke();
-    }
-
-    // outline color
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.9;
-    roundRect(ctx, -pw/2, -ph/2, pw, ph, 10); ctx.stroke();
-    ctx.restore();
-
-    // yield bar
-    const sunAngle = extras.sunAngle;
-    const err = Math.abs(sunAngle - panelAngle);
-    let align = clamp(Math.cos(err), 0, 1);
-    if(extras.sensorLost) align *= 0.35;
-    const yv = (sunYn > 0.02) ? align * extras.irradiance : 0;
-
-    const bx=14, by=H-28, bw=W-28, bh=12;
-    ctx.fillStyle="rgba(255,255,255,0.06)";
-    ctx.strokeStyle="rgba(255,255,255,0.12)";
-    roundRect(ctx,bx,by,bw,bh,999); ctx.fill(); ctx.stroke();
-
-    ctx.fillStyle=color;
-    roundRect(ctx,bx,by,bw*yv,bh,999); ctx.fill();
-
-    ctx.fillStyle="rgba(233,238,252,0.75)";
-    ctx.font="600 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    ctx.fillText(`Yield: ${Math.round(yv*100)}%`, 14, H-36);
-
-    if(extras.sensorLost){
-      ctx.fillStyle="rgba(255,170,170,0.85)";
-      ctx.font="700 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-      ctx.fillText("Lost → hunting", 14, H-8);
-    }
-  }
-
-  function roundRect(ctx, x,y,w,h,r){
+  function drawRoundedRect(x,y,w,h,r){
     const rr = Math.min(r, w/2, h/2);
     ctx.beginPath();
     ctx.moveTo(x+rr, y);
@@ -531,161 +356,319 @@ function initTrackerDemo(){
     ctx.closePath();
   }
 
-  function computeAngles(){
-    // weather parameters
-    let irradiance = 1.0;
-    let cloudy = false;
-    let dusty = false;
+  function draw(){
+    const rect = getRect();
+    const W = rect.width;     // ✅ CSS width
+    const H = rect.height;    // ✅ CSS height
 
-    if(weather === "cloudy"){ cloudy = true; irradiance *= 0.55; }
-    if(weather === "dusty"){ dusty = true; irradiance *= 0.85; }
+    // Background
+    ctx.fillStyle = "#070a14";
+    ctx.fillRect(0,0,W,H);
+
+    const g = ctx.createLinearGradient(0,0,W,0);
+    g.addColorStop(0, "rgba(30,90,160,0.20)");
+    g.addColorStop(0.55, "rgba(0,0,0,0)");
+    g.addColorStop(1, "rgba(50,130,220,0.22)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+
+    const pad = 16;
+    const colGap = 14;
+    const cols = 3;
+    const colW = (W - pad*2 - colGap*(cols-1)) / cols;
+    const cardH = H - pad*2;
+    const top = pad;
+    const lefts = [
+      pad,
+      pad + (colW + colGap),
+      pad + 2*(colW + colGap)
+    ];
+
+    const skyTop = top + 14;
+    const skyH = cardH * 0.58;
+    const groundY = skyTop + skyH;
 
     const sp = sunPos(t);
-    const dayFactor = 0.65 + 0.35 * sp.y; // stronger at noon
+    const sunXn = sp.x;
+    const sunYn = sp.y;
+
+    let irradiance = 1.0;
+    let cloudCover = 0.0;
+    let sensorDirty = 0.0;
+
+    if(weather === "cloudy"){
+      cloudCover = 0.7;
+      irradiance = 0.55;
+    } else if(weather === "dusty"){
+      sensorDirty = 0.9;
+      irradiance = 0.85;
+    }
+
+    const dayFactor = 0.65 + 0.35 * Math.sin(Math.PI*t);
     irradiance *= dayFactor;
 
-    const sunAngle = rad(-60 + 120 * sp.x);
-    const fixedAngle = rad(20);
+    const sunAngle = (-60 + 120 * sunXn) * Math.PI/180;
 
-    // "pressure" that breaks sensor lock
-    const lossPressure = clamp(0.15 + (cloudy?0.7:0) + (dusty?0.9:0) + (sp.y<0.25?0.25:0), 0, 1);
+    const fixedAngle = 20 * Math.PI/180;
 
-    const wobble = 0.5 + 0.5*Math.sin(12.0*t + 1.7);
+    const lowSun = (sunYn < 0.25) ? 1 : 0;
+    const lossPressure = clamp(0.15 + 0.95*(cloudCover + sensorDirty) + 0.25*lowSun, 0, 1);
 
     if(sensorLocked){
-      if(wobble < (0.18 * lossPressure)) sensorLocked = false;
+      const p = 0.0025 * lossPressure;
+      if(Math.random() < p) sensorLocked = false;
     } else {
-      const regain = (1 - lossPressure) * (sp.y > 0.25 ? 1 : 0.35);
-      if(wobble > (0.65 - 0.35*regain)) sensorLocked = true;
+      const regain = (1 - lossPressure) * (sunYn > 0.25 ? 1 : 0.35);
+      const p = 0.015 * regain;
+      if(Math.random() < p) sensorLocked = true;
     }
 
     if(sensorLocked){
       sensorAngle += (sunAngle - sensorAngle) * 0.08;
     } else {
-      huntPhase += 0.10;
-      const hunt = Math.sin(huntPhase) * rad(35);
+      sensorHuntPhase += 0.12;
+      const hunt = Math.sin(sensorHuntPhase) * (35*Math.PI/180);
       sensorAngle += (hunt - sensorAngle) * 0.06;
     }
 
-    return {
-      sp,
-      irradiance,
-      cloudy,
-      dusty,
-      sunAngle,
-      fixedAngle,
-      sensorAngle,
-      algoAngle: sunAngle,
-      sensorLost: !sensorLocked
-    };
-  }
+    const algoAngle = sunAngle;
 
-  function draw(){
-    const a = computeAngles();
+    const systems = [
+      { name:"Fixed Panel", angle: fixedAngle, color:"rgba(255,255,255,.65)", status:"OK" },
+      { name:"Sensor Tracker", angle: sensorAngle, color:"rgba(110,168,255,.85)", status: sensorLocked ? "TRACKING" : "LOST" },
+      { name:"SUNFLOWER", angle: algoAngle, color:"rgba(126,231,135,.90)", status:"LOCKED" }
+    ];
 
-    if(mode === "single"){
-      const W = canvasMain.clientWidth || 1000;
-      const H = Number(canvasMain.getAttribute("height") || 320);
+    for(let i=0;i<3;i++){
+      const x0 = lefts[i];
+      const y0 = top;
+      const w = colW;
+      const h = cardH;
 
-      // draw 3 cards inside one canvas (like your screenshot)
-      const pad=14, gap=12;
-      const colW = (W - pad*2 - gap*2) / 3;
-      const colH = H - pad*2;
+      ctx.fillStyle = "rgba(255,255,255,0.04)";
+      ctx.strokeStyle = "rgba(255,255,255,0.10)";
+      drawRoundedRect(x0,y0,w,h,18);
+      ctx.fill();
+      ctx.stroke();
 
-      ctxMain.clearRect(0,0,W,H);
+      ctx.fillStyle = "rgba(233,238,252,0.92)";
+      ctx.font = "700 16px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.fillText(systems[i].name, x0+14, y0+26);
 
-      // background for whole area
-      ctxMain.fillStyle = "#050913";
-      ctxMain.fillRect(0,0,W,H);
+      const st = systems[i].status;
+      ctx.font = "700 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      const pillW = ctx.measureText(st).width + 20;
+      const pillX = x0 + w - pillW - 14;
+      const pillY = y0 + 12;
 
-      const labels = ["Fixed Panel", "Sensor Tracker", "SUNFLOWER"];
-      const statuses = ["OK", a.sensorLost ? "LOST" : "TRACKING", "LOCKED"];
-      const bad = [false, a.sensorLost, false];
-      const colors = ["rgba(255,255,255,.65)", "rgba(110,168,255,.85)", "rgba(126,231,135,.90)"];
-      const angles = [a.fixedAngle, a.sensorAngle, a.algoAngle];
+      ctx.fillStyle = (i===1 && st==="LOST") ? "rgba(255,120,120,0.16)" : "rgba(255,255,255,0.06)";
+      ctx.strokeStyle = (i===1 && st==="LOST") ? "rgba(255,120,120,0.35)" : "rgba(255,255,255,0.10)";
+      drawRoundedRect(pillX, pillY, pillW, 22, 999);
+      ctx.fill(); ctx.stroke();
 
-      for(let i=0;i<3;i++){
-        const x = pad + i*(colW+gap);
-        const y = pad;
+      ctx.fillStyle = (i===1 && st==="LOST") ? "rgba(255,170,170,0.95)" : "rgba(233,238,252,0.78)";
+      ctx.fillText(st, pillX+10, pillY+15);
 
-        // sub-viewport draw by translating
-        ctxMain.save();
-        ctxMain.translate(x,y);
+      const skyX = x0 + 12;
+      const skyY = skyTop;
+      const skyW = w - 24;
+      const skyH2 = skyH - 10;
 
-        drawOneCard(
-          ctxMain,
-          colW,
-          colH,
-          labels[i],
-          statuses[i],
-          bad[i],
-          colors[i],
-          angles[i],
-          a.sp.x,
-          a.sp.y,
-          {
-            sunny: weather==="sunny",
-            cloudy: a.cloudy,
-            dusty: a.dusty,
-            irradiance: a.irradiance,
-            sunAngle: a.sunAngle,
-            sensorHead: i===1,
-            sensorLost: i===1 && a.sensorLost
-          }
-        );
+      const skyG = ctx.createLinearGradient(skyX, skyY, skyX, skyY+skyH2);
+      skyG.addColorStop(0, "rgba(12,18,40,0.95)");
+      skyG.addColorStop(1, "rgba(8,10,22,0.95)");
+      ctx.fillStyle = skyG;
+      drawRoundedRect(skyX, skyY, skyW, skyH2, 16);
+      ctx.fill();
 
-        ctxMain.restore();
+      // Sun arc
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for(let k=0;k<=60;k++){
+        const tt = k/60;
+        const p = sunPos(tt);
+        const px = skyX + p.x * skyW;
+        const py = skyY + (1 - p.y) * (skyH2*0.78) + skyH2*0.08;
+        if(k===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
       }
-    } else {
-      // triple canvases
-      const Wf = cFixed.clientWidth || 320;
-      const Hf = Number(cFixed.getAttribute("height") || 260);
+      ctx.stroke();
 
-      drawOneCard(ctxF, Wf, Hf, "Fixed Panel", "OK", false,
-        "rgba(255,255,255,.65)", a.fixedAngle, a.sp.x, a.sp.y,
-        { sunny: weather==="sunny", cloudy: a.cloudy, dusty: a.dusty, irradiance: a.irradiance, sunAngle: a.sunAngle, sensorHead:false, sensorLost:false }
-      );
+      // Clouds
+      if(weather === "cloudy"){
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = "rgba(200,220,255,0.10)";
+        const baseY = skyY + 34 + Math.sin(t*6.28 + i)*6;
+        for(let c=0;c<4;c++){
+          const cx = skyX + ( (t*0.6 + c*0.28) % 1 ) * skyW;
+          const cy = baseY + c*8;
+          drawRoundedRect(cx-40, cy, 86, 26, 999); ctx.fill();
+          drawRoundedRect(cx-10, cy-14, 56, 24, 999); ctx.fill();
+        }
+        ctx.restore();
+      }
 
-      drawOneCard(ctxS, Wf, Hf, "Sensor Tracker", a.sensorLost ? "LOST" : "TRACKING", a.sensorLost,
-        "rgba(110,168,255,.85)", a.sensorAngle, a.sp.x, a.sp.y,
-        { sunny: weather==="sunny", cloudy: a.cloudy, dusty: a.dusty, irradiance: a.irradiance, sunAngle: a.sunAngle, sensorHead:true, sensorLost:a.sensorLost }
-      );
+      const sunPx = skyX + sunXn * skyW;
+      const sunPy = skyY + (1 - sunYn) * (skyH2*0.78) + skyH2*0.08;
 
-      drawOneCard(ctxA, Wf, Hf, "SUNFLOWER", "LOCKED", false,
-        "rgba(126,231,135,.90)", a.algoAngle, a.sp.x, a.sp.y,
-        { sunny: weather==="sunny", cloudy: a.cloudy, dusty: a.dusty, irradiance: a.irradiance, sunAngle: a.sunAngle, sensorHead:false, sensorLost:false }
-      );
+      const sunAlpha = clamp(0.25 + 0.75*(1-cloudCover), 0.15, 1);
+
+      // glow
+      const glow = ctx.createRadialGradient(sunPx, sunPy, 4, sunPx, sunPy, 52);
+      glow.addColorStop(0, `rgba(255,220,140,${0.30*sunAlpha})`);
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(sunPx, sunPy, 52, 0, Math.PI*2); ctx.fill();
+
+      // disk
+      ctx.fillStyle = `rgba(255,220,140,${0.90*sunAlpha})`;
+      ctx.beginPath(); ctx.arc(sunPx, sunPy, 6, 0, Math.PI*2); ctx.fill();
+
+      // ground
+      const gy = groundY;
+      ctx.strokeStyle = "rgba(255,255,255,0.10)";
+      ctx.beginPath(); ctx.moveTo(x0+12, gy); ctx.lineTo(x0+w-12, gy); ctx.stroke();
+
+      const panelBaseX = x0 + w*0.5;
+      const panelBaseY = gy + 84;
+
+      // stand
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(panelBaseX, gy+10);
+      ctx.lineTo(panelBaseX, panelBaseY-10);
+      ctx.stroke();
+
+      // head
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.strokeStyle = "rgba(255,255,255,0.12)";
+      drawRoundedRect(panelBaseX-26, panelBaseY-14, 52, 28, 12);
+      ctx.fill(); ctx.stroke();
+
+      if(i===1){
+        ctx.save();
+        ctx.fillStyle = sensorDirty > 0.5 ? "rgba(255,160,120,0.65)" : "rgba(233,238,252,0.35)";
+        ctx.beginPath(); ctx.arc(panelBaseX-10, panelBaseY-2, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(panelBaseX+10, panelBaseY-2, 3, 0, Math.PI*2); ctx.fill();
+
+        if(weather === "dusty"){
+          ctx.fillStyle = "rgba(255,170,120,0.12)";
+          drawRoundedRect(panelBaseX-30, panelBaseY-30, 60, 18, 8);
+          ctx.fill();
+          ctx.fillStyle = "rgba(255,190,160,0.85)";
+          ctx.font = "700 11px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+          ctx.fillText("DIRTY SENSOR", panelBaseX-26, panelBaseY-18);
+        }
+        ctx.restore();
+      }
+
+      const ang = systems[i].angle;
+      const sunAbove = (sunYn > 0.02);
+      if(sunAbove){
+        const rayAlpha = 0.10 + 0.18 * irradiance;
+        ctx.strokeStyle = `rgba(255,220,140,${rayAlpha})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(sunPx, sunPy);
+        ctx.lineTo(panelBaseX, panelBaseY);
+        ctx.stroke();
+      }
+
+      // panel
+      ctx.save();
+      ctx.translate(panelBaseX, panelBaseY);
+      ctx.rotate(ang);
+
+      ctx.fillStyle = "rgba(15,23,48,0.85)";
+      ctx.strokeStyle = "rgba(255,255,255,0.16)";
+      ctx.lineWidth = 2;
+
+      const pw = 120, ph = 58;
+      drawRoundedRect(-pw/2, -ph/2, pw, ph, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 1;
+      for(let gx= -pw/2 + 18; gx < pw/2; gx += 18){
+        ctx.beginPath(); ctx.moveTo(gx, -ph/2+6); ctx.lineTo(gx, ph/2-6); ctx.stroke();
+      }
+      for(let gy2= -ph/2 + 18; gy2 < ph/2; gy2 += 18){
+        ctx.beginPath(); ctx.moveTo(-pw/2+6, gy2); ctx.lineTo(pw/2-6, gy2); ctx.stroke();
+      }
+
+      ctx.strokeStyle = systems[i].color;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.8;
+      drawRoundedRect(-pw/2, -ph/2, pw, ph, 10);
+      ctx.stroke();
+      ctx.restore();
+
+      // yield
+      const err = Math.abs(sunAngle - ang);
+      let align = Math.cos(err);
+      align = clamp(align, 0, 1);
+      let sysIrr = irradiance;
+
+      if(i===1 && !sensorLocked) align *= 0.35;
+
+      const yieldVal = (sunAbove ? (align * sysIrr) : 0);
+
+      const barX = x0 + 14;
+      const barY = y0 + h - 46;
+      const barW = w - 28;
+      const barH = 14;
+
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.strokeStyle = "rgba(255,255,255,0.12)";
+      drawRoundedRect(barX, barY, barW, barH, 999);
+      ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle = systems[i].color;
+      drawRoundedRect(barX, barY, barW * yieldVal, barH, 999);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(233,238,252,0.75)";
+      ctx.font = "600 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.fillText(`Yield: ${Math.round(yieldVal*100)}%`, barX, barY + 32);
+
+      if(i===1 && !sensorLocked){
+        ctx.fillStyle = "rgba(255,170,170,0.85)";
+        ctx.font = "700 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+        ctx.fillText("Sensor lost the Sun → hunting", barX, barY + 52);
+      }
     }
+
+    ctx.fillStyle = "rgba(233,238,252,0.55)";
+    ctx.font = "600 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    const label = (weather === "sunny") ? "Sunny conditions" : (weather === "cloudy") ? "Cloudy (sensor instability)" : "Dusty (dirty sensor)";
+    ctx.fillText(label, 18, H - 10);
   }
 
-  function step(now){
-    const dt = Math.min(0.05, (now - last) / 1000);
-    last = now;
+  function tick(ts){
+    const dt = Math.min(0.05, (ts - lastTs) / 1000);
+    lastTs = ts;
 
     if(running){
       const dayRate = 1 / Math.max(4, secondsPerDay);
       t += dt * dayRate;
       if(t > 1) t -= 1;
     }
+
     draw();
-    requestAnimationFrame(step);
+    requestAnimationFrame(tick);
   }
 
-  // controls
-  function setSpeed(v){
-    secondsPerDay = Number(v);
-    if(speedVal) speedVal.textContent = String(secondsPerDay);
-  }
+  // Events
+  window.addEventListener("resize", resize, { passive:true });
 
   if(weatherSelect){
-    weatherSelect.addEventListener("change", (e) => {
-      weather = e.target.value;
-      sensorLocked = true;
-      huntPhase = 0;
-    });
+    weatherSelect.addEventListener("change", (e) => setWeather(e.target.value));
   }
   if(speedRange){
-    speedRange.addEventListener("input", (e) => setSpeed(e.target.value));
+    speedRange.addEventListener("input", (e) => setSpeed(e.target.value), { passive:true });
     setSpeed(speedRange.value);
   }
   if(togglePlay){
@@ -695,28 +678,16 @@ function initTrackerDemo(){
     });
   }
   if(resetDemo){
-    resetDemo.addEventListener("click", () => {
-      t = 0;
-      sensorLocked = true;
-      sensorAngle = 0;
-      huntPhase = 0;
-      draw();
-    });
+    resetDemo.addEventListener("click", reset);
   }
 
-  window.addEventListener("resize", () => {
-    resizeAll();
-    draw();
-  });
-
-  // start
-  resizeAll();
+  // Init
+  resize();
   draw();
-  last = performance.now();
-  requestAnimationFrame(step);
-}
+  requestAnimationFrame((ts)=>{ lastTs = ts; tick(ts); });
+})();
 
-  // ============================
+   // ============================
   // 5) WEB CALCULATOR + ALT CHART
   // ============================
   function initWebCalculator(){
